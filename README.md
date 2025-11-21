@@ -84,6 +84,9 @@ huebOnlineJudge/
 │   └── main.js
 ├── .env.development             # 开发环境配置
 ├── .env.production              # 生产环境配置
-├── vite.config.js               # Vite 配置
+├── vue.configjs
+├── package-lock.json
+├── jsconfig.json
+├── babel.config.js
 └── package.json
 ```

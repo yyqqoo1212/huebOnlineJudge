@@ -6,8 +6,9 @@
         <p class="hero-subtitle">提升编程技能，挑战算法难题</p>
         <div class="hero-actions">
           <router-link to="/problems" class="btn-primary">开始答题</router-link>
-          <router-link v-if="!isLoggedIn" to="/register" class="btn-secondary">注册账号</router-link>
-          <!-- 上一行需要进行登录判断 -->
+          <template v-if="!isLoggedIn">
+            <router-link to="/register" class="btn-secondary">注册账号</router-link>
+          </template>
         </div>
       </div>
     </div>
@@ -43,11 +44,11 @@
   </div>
 </template>
 
-<script>
-export default {
-  name: 'HomeView',
-  // 应该是在这里判断是否登录
-}
+<script setup>
+import { useAuth } from '@/composbles/useAuth'
+
+const { isLoggedIn } = useAuth()
+
 </script>
 
 <style scoped lang="scss">

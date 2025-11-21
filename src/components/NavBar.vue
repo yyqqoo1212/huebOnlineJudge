@@ -16,10 +16,9 @@
 
       <div class="navbar-right">
         <template v-if="isLoggedIn">
-          <router-link :to="`/users/${userId}`" class="nav-item">
-            {{ username }}
+          <router-link to="/settings" class="nav-item">
+            {{ username }} 设置
           </router-link>
-          <router-link to="/settings" class="nav-item">设置</router-link>
           <button class="logout-btn" @click="handleLogout">登出</button>
         </template>
         <template v-else>
@@ -36,7 +35,7 @@ import { useRouter } from 'vue-router'
 import { useAuth } from '@/composbles/useAuth'
 
 const router = useRouter()
-const { isLoggedIn, username, userId, logout } = useAuth()
+const { isLoggedIn, username, logout} = useAuth()
 
 const handleLogout = () => {
   logout()

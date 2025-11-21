@@ -107,7 +107,7 @@ export default {
         {
           id: 1002,
           title: '两数相加',
-          tags: ['链表', '数学'],
+          tags: [],
           difficulty: 'medium',
           submissions: 8920,
           passRate: 45.2

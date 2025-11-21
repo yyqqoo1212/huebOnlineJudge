@@ -21,7 +21,10 @@
           class="course-card"
         >
           <div class="course-image">
-            <img :src="course.image" :alt="course.name" />
+            <img 
+              :src="getCourseImageUrl(course.imageFileName)"
+              :alt="course.name" 
+            />
           </div>
           <div class="course-info">
             <div class="course-header">
@@ -59,6 +62,10 @@ export default {
   data() {
     return {
       searchQuery: '',
+      // 读取环境变量
+      minioBaseUrl: process.env.VUE_APP_MINIO_HOST,
+      bucketName: process.env.VUE_APP_MINIO_BUCKET,
+
       courses: [
         {
           id: 'CS101',
@@ -66,7 +73,7 @@ export default {
           teacher: '张教授',
           createTime: '2024-01-15T10:30:00',
           status: 'active',
-          image: require('@/assets/images/coursedemo/CS101.png'),
+          imageFileName: 'CS101.png'
         },
         {
           id: 'CS102',
@@ -74,7 +81,7 @@ export default {
           teacher: '李教授',
           createTime: '2024-02-20T14:20:00',
           status: 'active',
-          image: require('@/assets/images/coursedemo/CS102.png'),
+          imageFileName: 'CS102.png',
         },
         {
           id: 'CS103',
@@ -82,7 +89,7 @@ export default {
           teacher: '王教授',
           createTime: '2024-01-10T09:15:00',
           status: 'active',
-          image: require('@/assets/images/coursedemo/CS103.png'),
+          imageFileName: 'CS103.png',
         },
         {
           id: 'CS104',
@@ -90,7 +97,7 @@ export default {
           teacher: '赵教授',
           createTime: '2024-03-05T16:45:00',
           status: 'active',
-          image: require('@/assets/images/coursedemo/CS104.png'),
+          imageFileName: 'CS104.png',
         },
         {
           id: 'CS105',
@@ -98,7 +105,7 @@ export default {
           teacher: '刘教授',
           createTime: '2024-02-28T11:00:00',
           status: 'ended',
-          image: require('@/assets/images/coursedemo/CS105.png'),
+          imageFileName: 'CS105.png',
         }
       ]
     }
@@ -126,6 +133,10 @@ export default {
     }
   },
   methods: {
+    getCourseImageUrl(imageName) {
+      if (!imageName) return ''
+      return `${this.minioBaseUrl}/${this.bucketName}/coursedemo/${imageName}`
+    },
     getStatusText(status) {
       const map = {
         'active': '进行中',
