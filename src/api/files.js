@@ -64,7 +64,40 @@ uploadHttp.interceptors.response.use(
 )
 
 /**
- * 上传文件到 Minio
+ * 上传临时文件到 Minio（无需认证，用于注册阶段）
+ * @param {File} file - 要上传的文件
+ * @param {string} objectKey - Minio 中的对象键，必须是 'avatars/temp/...' 格式
+ * @returns {Promise} 返回上传结果
+ */
+export const uploadTempFile = (file, objectKey) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('object_key', objectKey)
+  
+  // 调试信息
+  console.log('上传临时文件:', {
+    fileName: file.name,
+    fileSize: file.size,
+    fileType: file.type,
+    objectKey: objectKey
+  })
+  
+  // 创建不需要认证的 axios 实例
+  const tempUploadHttp = axios.create({
+    baseURL: API_BASE_URL,
+    timeout: 30000
+  })
+  
+  tempUploadHttp.interceptors.response.use(
+    (response) => response.data,
+    (error) => normalizeError(error)
+  )
+  
+  return tempUploadHttp.post('/files/upload-temp', formData)
+}
+
+/**
+ * 上传文件到 Minio（需要认证）
  * @param {File} file - 要上传的文件
  * @param {string} objectKey - Minio 中的对象键，如 'avatars/1/avatar.jpg'
  * @returns {Promise} 返回上传结果

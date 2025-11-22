@@ -7,80 +7,124 @@
       </header>
 
       <form class="auth-form" @submit.prevent="handleSubmit">
-        <div class="form-group" :class="{ error: errors.username }">
-          <label for="username">用户名</label>
-          <input
-            id="username"
-            v-model.trim="form.username"
-            type="text"
-            placeholder="3-50 个字符，支持字母/数字/下划线"
-            maxlength="50"
-            @blur="validateField('username')"
-          />
-          <small v-if="errors.username">{{ errors.username }}</small>
-        </div>
+        <!-- 必填字段区域 -->
+        <div class="form-row">
+          <div class="form-group" :class="{ error: errors.username }">
+            <label for="username">用户名</label>
+            <input
+              id="username"
+              v-model.trim="form.username"
+              type="text"
+              placeholder="3-50 个字符，支持字母/数字/下划线"
+              maxlength="50"
+              @blur="validateField('username')"
+            />
+            <small v-if="errors.username">{{ errors.username }}</small>
+          </div>
 
-        <div class="form-group" :class="{ error: errors.email }">
-          <label for="email">邮箱</label>
-          <input
-            id="email"
-            v-model.trim="form.email"
-            type="email"
-            placeholder="example@hust.edu.cn"
-            @blur="validateField('email')"
-          />
-          <small v-if="errors.email">{{ errors.email }}</small>
-        </div>
-
-        <div class="form-group" :class="{ error: errors.password }">
-          <label for="password">密码</label>
-          <input
-            id="password"
-            v-model="form.password"
-            type="password"
-            placeholder="至少 6 位，建议包含大小写与数字"
-            minlength="6"
-            @blur="validateField('password')"
-          />
-          <small v-if="errors.password">{{ errors.password }}</small>
-        </div>
-
-        <div class="form-group">
-          <label for="gender">性别</label>
-          <div class="gender-options">
-            <label class="gender-option">
-              <input
-                id="gender-male"
-                v-model="form.gender"
-                type="radio"
-                value="M"
-              />
-              <span>男</span>
-            </label>
-            <label class="gender-option">
-              <input
-                id="gender-female"
-                v-model="form.gender"
-                type="radio"
-                value="F"
-              />
-              <span>女</span>
-            </label>
+          <div class="form-group" :class="{ error: errors.email }">
+            <label for="email">邮箱</label>
+            <input
+              id="email"
+              v-model.trim="form.email"
+              type="email"
+              placeholder="example@hust.edu.cn"
+              @blur="validateField('email')"
+            />
+            <small v-if="errors.email">{{ errors.email }}</small>
           </div>
         </div>
 
-        <div class="form-group optional">
-          <label for="motto">个性签名（可选）</label>
-          <input
-            id="motto"
-            v-model.trim="form.motto"
-            type="text"
-            placeholder="写一句话介绍你自己"
-            maxlength="80"
-          />
+        <div class="form-row">
+          <div class="form-group" :class="{ error: errors.password }">
+            <label for="password">密码</label>
+            <input
+              id="password"
+              v-model="form.password"
+              type="password"
+              placeholder="至少 6 位，建议包含大小写与数字"
+              minlength="6"
+              @blur="validateField('password')"
+            />
+            <small v-if="errors.password">{{ errors.password }}</small>
+          </div>
+
+          <div class="form-group">
+            <label for="gender">性别</label>
+            <div class="gender-options">
+              <label class="gender-option">
+                <input
+                  id="gender-male"
+                  v-model="form.gender"
+                  type="radio"
+                  value="M"
+                />
+                <span>男</span>
+              </label>
+              <label class="gender-option">
+                <input
+                  id="gender-female"
+                  v-model="form.gender"
+                  type="radio"
+                  value="F"
+                />
+                <span>女</span>
+              </label>
+            </div>
+          </div>
         </div>
 
-        <div class="form-group optional">
+        <!-- 可选字段区域 - 两列布局 -->
+        <div class="form-row">
+          <div class="form-group optional">
+            <label for="studentId">学号（可选）</label>
+            <input
+              id="studentId"
+              v-model.trim="form.studentId"
+              type="text"
+              placeholder="请输入学号"
+              maxlength="50"
+            />
+          </div>
+
+          <div class="form-group optional">
+            <label for="className">班级（可选）</label>
+            <input
+              id="className"
+              v-model.trim="form.className"
+              type="text"
+              placeholder="请输入班级"
+              maxlength="100"
+            />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group optional">
+            <label for="realName">真实姓名（可选）</label>
+            <input
+              id="realName"
+              v-model.trim="form.realName"
+              type="text"
+              placeholder="请输入真实姓名"
+              maxlength="50"
+            />
+          </div>
+
+          <div class="form-group optional">
+            <label for="motto">个性签名（可选）</label>
+            <input
+              id="motto"
+              v-model.trim="form.motto"
+              type="text"
+              placeholder="写一句话介绍你自己"
+              maxlength="80"
+            />
+          </div>
+        </div>
+
+        <!-- 头像上传 - 单独一行 -->
+        <div class="form-group optional avatar-group">
           <label for="avatar">头像（可选）</label>
           <div class="avatar-upload-container">
             <div v-if="avatarPreview" class="avatar-preview">
@@ -150,7 +194,7 @@ import { reactive, computed, watch, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { validateRegisterForm, validateUsername, validatePassword, validateEmail } from '@/utils/validator'
-import { uploadFile } from '@/api/files'
+import { uploadTempFile } from '@/api/files'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -165,7 +209,10 @@ const form = reactive({
   password: '',
   gender: 'M',
   motto: '',
-  avatarUrl: ''
+  avatarUrl: '',
+  studentId: '',
+  className: '',
+  realName: ''
 })
 
 const errors = reactive({
@@ -271,7 +318,7 @@ const uploadAvatar = async (file) => {
     const uuid = generateUUID()
     const objectKey = `avatars/temp/${uuid}/avatar.${fileExtension}`
 
-    const response = await uploadFile(file, objectKey)
+    const response = await uploadTempFile(file, objectKey)
     
     // 保存 object_key，注册时传递给后端
     // 优先使用后端返回的 object_key，否则使用我们生成的
@@ -354,7 +401,7 @@ const handleSubmit = async () => {
 
 .auth-card {
   width: 100%;
-  max-width: 520px;
+  max-width: 900px;
   background: #fff;
   border-radius: 16px;
   padding: 36px;
@@ -376,6 +423,12 @@ const handleSubmit = async () => {
   margin-top: 28px;
   display: flex;
   flex-direction: column;
+  gap: 18px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 18px;
 }
 
@@ -593,8 +646,17 @@ const handleSubmit = async () => {
   font-weight: 600;
 }
 
-@media (max-width: 600px) {
+.avatar-group {
+  grid-column: 1 / -1; /* 头像上传占据整行 */
+}
+
+@media (max-width: 768px) {
+  .form-row {
+    grid-template-columns: 1fr; /* 小屏幕下改为单列 */
+  }
+  
   .auth-card {
+    max-width: 100%;
     padding: 28px 22px;
   }
 }
