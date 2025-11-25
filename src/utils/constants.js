@@ -1,5 +1,5 @@
 export const API_BASE_URL =
-  process.env.VUE_APP_API_BASE_URL || 'http://localhost:8000/api'
+  process.env.VUE_APP_API_BASE_URL || 'http://101.42.172.229/api'
 
 export const STORAGE_KEYS = {
   TOKEN: 'hueb_token',
