@@ -38,3 +38,5 @@ export const changePassword = (payload) =>
     old_password: payload.oldPassword,
     new_password: payload.newPassword
   })
+
+export const deleteAccount = () => http.delete('/users/delete-account')

@@ -1,5 +1,5 @@
 export const API_BASE_URL =
-  process.env.VUE_APP_API_BASE_URL || 'http://101.42.172.229/api'
+  process.env.VUE_APP_API_BASE_URL
 
 export const STORAGE_KEYS = {
   TOKEN: 'hueb_token',
@@ -9,7 +9,7 @@ export const STORAGE_KEYS = {
 }
 
 export const API_ERROR_MESSAGES = {
-  bad_json: '请求格式错误，请检查后重试。',
+  bad_json: '请求格式错误，请检查后重试。', // 400
   invalid_request: '请求参数不合法，请检查表单内容。',
   username_taken: '用户名已被使用，请尝试其他名称。',
   email_taken: '邮箱已被注册，请尝试找回密码或使用其他邮箱。',

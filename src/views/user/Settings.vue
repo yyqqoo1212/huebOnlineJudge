@@ -11,259 +11,291 @@
       </div>
 
       <div v-else-if="user" class="settings-content">
-        <!-- 编辑模式切换按钮 -->
-        <div class="edit-header">
-          <button
-            v-if="!isEditing"
-            class="edit-btn"
-            @click="startEdit"
-          >
-            编辑资料
-          </button>
-          <div v-else class="edit-actions">
-            <button class="cancel-btn" @click="cancelEdit">取消</button>
-            <button class="save-btn" @click="handleSave" :disabled="isSaving">
-              {{ isSaving ? '保存中...' : '保存' }}
+        <div class="content-header">
+          <div>
+            <p class="content-subtitle">保持资料最新，方便平台更好地为你服务</p>
+          </div>
+          <div class="edit-header">
+            <button
+              v-if="!isEditing"
+              class="edit-btn"
+              @click="startEdit"
+            >
+              编辑资料
             </button>
+            <div v-else class="edit-actions">
+              <button class="cancel-btn" @click="cancelEdit">取消</button>
+              <button class="save-btn" @click="handleSave" :disabled="isSaving">
+                {{ isSaving ? '保存中...' : '保存' }}
+              </button>
+            </div>
           </div>
         </div>
 
-        <!-- 头像编辑 -->
-        <section class="avatar-section">
-          <h2>头像</h2>
-          <div class="avatar-container">
-            <div v-if="avatarPreview || user.avatar_url" class="avatar-preview">
-              <img
-                :src="avatarPreview || user.avatar_url"
-                :alt="user.username"
-                class="avatar-image"
-              />
-              <button
-                v-if="isEditing"
-                type="button"
-                class="remove-avatar-btn"
-                @click="removeAvatar"
-                title="移除头像"
-              >
-                ×
-              </button>
-            </div>
-            <div v-else class="avatar-placeholder">
-              <svg
-                width="48"
-                height="48"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <path
-                  d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"
-                ></path>
-                <circle cx="12" cy="7" r="4"></circle>
-              </svg>
-              <span>暂无头像</span>
-            </div>
-            <div v-if="isEditing" class="avatar-upload-controls">
-              <input
-                ref="avatarInput"
-                type="file"
-                accept="image/*"
-                style="display: none"
-                @change="handleAvatarChange"
-              />
-              <button
-                type="button"
-                class="upload-btn"
-                :disabled="isUploadingAvatar"
-                @click="$refs.avatarInput?.click()"
-              >
-                {{ isUploadingAvatar ? '上传中...' : avatarPreview || user.avatar_url ? '更换头像' : '上传头像' }}
-              </button>
-              <small v-if="avatarError" class="avatar-error">{{ avatarError }}</small>
-            </div>
-          </div>
-        </section>
-
-        <!-- 基本信息编辑 -->
-        <section class="info-section">
-          <h2>基本信息</h2>
-          <div class="info-grid">
-            <div class="info-item">
-              <label>用户ID</label>
-              <div class="info-value">{{ user.id || '未设置' }}</div>
-            </div>
-
-            <div class="info-item">
-              <label>用户名</label>
-              <input
-                v-if="isEditing"
-                v-model.trim="editForm.username"
-                type="text"
-                class="edit-input"
-                placeholder="请输入用户名"
-              />
-              <div v-else class="info-value">{{ user.username || '未设置' }}</div>
-            </div>
-
-            <div class="info-item">
-              <label>邮箱</label>
-              <input
-                v-if="isEditing"
-                v-model.trim="editForm.email"
-                type="email"
-                class="edit-input"
-                placeholder="请输入邮箱"
-              />
-              <div v-else class="info-value">{{ user.email || '未设置' }}</div>
-            </div>
-
-            <div class="info-item">
-              <label>性别</label>
-              <div v-if="isEditing" class="gender-options">
-                <label class="gender-option">
-                  <input
-                    v-model="editForm.gender"
-                    type="radio"
-                    value="M"
+        <div class="settings-layout">
+          <aside class="profile-panel card">
+            <section class="avatar-section">
+              <div class="avatar-container">
+                <div v-if="avatarPreview || user.avatar_url" class="avatar-preview">
+                  <img
+                    :src="avatarPreview || user.avatar_url"
+                    :alt="user.username"
+                    class="avatar-image"
                   />
-                  <span>男</span>
-                </label>
-                <label class="gender-option">
+                  <button
+                    v-if="isEditing"
+                    type="button"
+                    class="remove-avatar-btn"
+                    @click="removeAvatar"
+                    title="移除头像"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div v-else class="avatar-placeholder">
+                  <svg
+                    width="48"
+                    height="48"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path
+                      d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"
+                    ></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                  </svg>
+                  <span>暂无头像</span>
+                </div>
+                <div v-if="isEditing" class="avatar-upload-controls">
                   <input
-                    v-model="editForm.gender"
-                    type="radio"
-                    value="F"
+                    ref="avatarInput"
+                    type="file"
+                    accept="image/*"
+                    style="display: none"
+                    @change="handleAvatarChange"
                   />
-                  <span>女</span>
-                </label>
+                  <button
+                    type="button"
+                    class="upload-btn"
+                    :disabled="isUploadingAvatar"
+                    @click="$refs.avatarInput?.click()"
+                  >
+                    {{ isUploadingAvatar ? '上传中...' : avatarPreview || user.avatar_url ? '更换头像' : '上传头像' }}
+                  </button>
+                  <small v-if="avatarError" class="avatar-error">{{ avatarError }}</small>
+                </div>
               </div>
-              <div v-else class="info-value">
-                {{ getGenderText(user.gender) }}
+            </section>
+
+            <section class="meta-section">
+              <div class="meta-item">
+                <span>用户 ID</span>
+                <strong>{{ user.id || '未设置' }}</strong>
               </div>
-            </div>
+              <div class="meta-item">
+                <span>注册时间</span>
+                <strong>{{ formatDate(user.created_at) }}</strong>
+              </div>
+              <div class="meta-item">
+                <span>最后登录</span>
+                <strong>{{ formatDate(user.last_login_time) }}</strong>
+              </div>
+            </section>
 
-            <div class="info-item">
-              <label>个性签名</label>
-              <input
-                v-if="isEditing"
-                v-model.trim="editForm.motto"
-                type="text"
-                class="edit-input"
-                placeholder="写一句话介绍你自己"
-                maxlength="80"
-              />
-              <div v-else class="info-value">{{ user.motto || '未设置' }}</div>
-            </div>
+            <section class="stats-section side-card">
+              <h2>成就概览</h2>
+              <div class="stats-grid">
+                <div class="stat-item">
+                  <div class="stat-value">{{ user.total_submissions || 0 }}</div>
+                  <div class="stat-label">总提交</div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-value">{{ user.accepted_submissions || 0 }}</div>
+                  <div class="stat-label">通过题目</div>
+                </div>
+              </div>
+            </section>
+          </aside>
 
-            <div class="info-item">
-              <label>学号</label>
-              <input
-                v-if="isEditing"
-                v-model.trim="editForm.studentId"
-                type="text"
-                class="edit-input"
-                placeholder="请输入学号"
-                maxlength="50"
-              />
-              <div v-else class="info-value">{{ user.student_id || '未设置' }}</div>
-            </div>
+          <div class="main-panel">
+            <section class="card info-section">
+              <div class="section-header">
+                <div>
+                  <h2>基本信息</h2>
+                  <p>这些信息将展示在您的个人主页中</p>
+                </div>
+              </div>
+              <div class="info-grid">
+                <div class="info-item">
+                  <label>用户名</label>
+                  <input
+                    v-if="isEditing"
+                    v-model.trim="editForm.username"
+                    type="text"
+                    class="edit-input"
+                    placeholder="请输入用户名"
+                  />
+                  <div v-else class="info-value">{{ user.username || '未设置' }}</div>
+                </div>
 
-            <div class="info-item">
-              <label>班级</label>
-              <input
-                v-if="isEditing"
-                v-model.trim="editForm.className"
-                type="text"
-                class="edit-input"
-                placeholder="请输入班级"
-                maxlength="100"
-              />
-              <div v-else class="info-value">{{ user.class_name || '未设置' }}</div>
-            </div>
+                <div class="info-item">
+                  <label>邮箱</label>
+                  <input
+                    v-if="isEditing"
+                    v-model.trim="editForm.email"
+                    type="email"
+                    class="edit-input"
+                    placeholder="请输入邮箱"
+                  />
+                  <div v-else class="info-value">{{ user.email || '未设置' }}</div>
+                </div>
 
-            <div class="info-item">
-              <label>真实姓名</label>
-              <input
-                v-if="isEditing"
-                v-model.trim="editForm.realName"
-                type="text"
-                class="edit-input"
-                placeholder="请输入真实姓名"
-                maxlength="50"
-              />
-              <div v-else class="info-value">{{ user.real_name || '未设置' }}</div>
-            </div>
+                <div class="info-item">
+                  <label>性别</label>
+                  <div v-if="isEditing" class="gender-options">
+                    <label class="gender-option">
+                      <input
+                        v-model="editForm.gender"
+                        type="radio"
+                        value="M"
+                      />
+                      <span>男</span>
+                    </label>
+                    <label class="gender-option">
+                      <input
+                        v-model="editForm.gender"
+                        type="radio"
+                        value="F"
+                      />
+                      <span>女</span>
+                    </label>
+                  </div>
+                  <div v-else class="info-value">
+                    {{ getGenderText(user.gender) }}
+                  </div>
+                </div>
 
-            <div class="info-item" v-if="user.created_at">
-              <label>注册时间</label>
-              <div class="info-value">{{ formatDate(user.created_at) }}</div>
-            </div>
+                <div class="info-item full-width">
+                  <label>个性签名</label>
+                  <input
+                    v-if="isEditing"
+                    v-model.trim="editForm.motto"
+                    type="text"
+                    class="edit-input"
+                    placeholder="写一句话介绍你自己"
+                    maxlength="80"
+                  />
+                  <div v-else class="info-value">{{ user.motto || '未设置' }}</div>
+                </div>
 
-            <div class="info-item" v-if="user.last_login_time">
-              <label>最后登录时间</label>
-              <div class="info-value">{{ formatDate(user.last_login_time) }}</div>
-            </div>
+                <div class="info-item">
+                  <label>学号</label>
+                  <input
+                    v-if="isEditing"
+                    v-model.trim="editForm.studentId"
+                    type="text"
+                    class="edit-input"
+                    placeholder="请输入学号"
+                    maxlength="50"
+                  />
+                  <div v-else class="info-value">{{ user.student_id || '未设置' }}</div>
+                </div>
+
+                <div class="info-item">
+                  <label>班级</label>
+                  <input
+                    v-if="isEditing"
+                    v-model.trim="editForm.className"
+                    type="text"
+                    class="edit-input"
+                    placeholder="请输入班级"
+                    maxlength="100"
+                  />
+                  <div v-else class="info-value">{{ user.class_name || '未设置' }}</div>
+                </div>
+
+                <div class="info-item">
+                  <label>真实姓名</label>
+                  <input
+                    v-if="isEditing"
+                    v-model.trim="editForm.realName"
+                    type="text"
+                    class="edit-input"
+                    placeholder="请输入真实姓名"
+                    maxlength="50"
+                  />
+                  <div v-else class="info-value">{{ user.real_name || '未设置' }}</div>
+                </div>
+              </div>
+            </section>
+
+            <section class="card password-section">
+              <div class="section-header">
+                <div>
+                  <h2>登录安全</h2>
+                  <p>建议定期更换密码，提升账户安全</p>
+                </div>
+              </div>
+              <div class="password-form">
+                <div class="form-item">
+                  <label>旧密码</label>
+                  <input
+                    v-model.trim="passwordForm.oldPassword"
+                    type="password"
+                    class="edit-input"
+                    placeholder="请输入旧密码"
+                  />
+                </div>
+                <div class="form-item">
+                  <label>新密码</label>
+                  <input
+                    v-model.trim="passwordForm.newPassword"
+                    type="password"
+                    class="edit-input"
+                    placeholder="请输入新密码（至少6位）"
+                  />
+                </div>
+                <div class="form-item">
+                  <label>确认新密码</label>
+                  <input
+                    v-model.trim="passwordForm.confirmPassword"
+                    type="password"
+                    class="edit-input"
+                    placeholder="请再次输入新密码"
+                  />
+                </div>
+                <button
+                  class="change-password-btn"
+                  @click="handleChangePassword"
+                  :disabled="isChangingPassword"
+                >
+                  {{ isChangingPassword ? '修改中...' : '修改密码' }}
+                </button>
+                <div v-if="passwordError" class="password-error">{{ passwordError }}</div>
+                <div v-if="passwordSuccess" class="password-success">{{ passwordSuccess }}</div>
+              </div>
+            </section>
+
+            <section class="card danger-section">
+              <div class="section-header">
+                <div>
+                  <h2>危险操作</h2>
+                  <p>注销后所有数据将被永久清除，请谨慎操作</p>
+                </div>
+              </div>
+              <button
+                class="delete-account-btn"
+                @click="openDeleteModal"
+              >
+                注销账户
+              </button>
+              <div v-if="deleteError" class="delete-error">{{ deleteError }}</div>
+              <div v-if="deleteSuccess" class="delete-success">{{ deleteSuccess }}</div>
+            </section>
           </div>
-        </section>
-
-        <!-- 修改密码 -->
-        <section class="password-section">
-          <h2>修改密码</h2>
-          <div class="password-form">
-            <div class="form-item">
-              <label>旧密码</label>
-              <input
-                v-model.trim="passwordForm.oldPassword"
-                type="password"
-                class="edit-input"
-                placeholder="请输入旧密码"
-              />
-            </div>
-            <div class="form-item">
-              <label>新密码</label>
-              <input
-                v-model.trim="passwordForm.newPassword"
-                type="password"
-                class="edit-input"
-                placeholder="请输入新密码（至少6位）"
-              />
-            </div>
-            <div class="form-item">
-              <label>确认新密码</label>
-              <input
-                v-model.trim="passwordForm.confirmPassword"
-                type="password"
-                class="edit-input"
-                placeholder="请再次输入新密码"
-              />
-            </div>
-            <button
-              class="change-password-btn"
-              @click="handleChangePassword"
-              :disabled="isChangingPassword"
-            >
-              {{ isChangingPassword ? '修改中...' : '修改密码' }}
-            </button>
-            <div v-if="passwordError" class="password-error">{{ passwordError }}</div>
-            <div v-if="passwordSuccess" class="password-success">{{ passwordSuccess }}</div>
-          </div>
-        </section>
-
-        <!-- 统计信息 -->
-        <section class="stats-section">
-          <h2>统计信息</h2>
-          <div class="stats-grid">
-            <div class="stat-item">
-              <div class="stat-value">{{ user.total_submissions || 0 }}</div>
-              <div class="stat-label">总提交数</div>
-            </div>
-            <div class="stat-item">
-              <div class="stat-value">{{ user.accepted_submissions || 0 }}</div>
-              <div class="stat-label">通过数</div>
-            </div>
-          </div>
-        </section>
+        </div>
 
         <!-- 错误提示 -->
         <div v-if="errorMessage" class="error-message">
@@ -278,6 +310,20 @@
         <p>无法加载用户信息，请重新登录</p>
         <router-link to="/login" class="login-link">前往登录</router-link>
       </div>
+      <transition name="fade">
+        <div v-if="showDeleteModal" class="modal-overlay" @click.self="closeDeleteModal">
+          <div class="modal-card">
+            <h3>确认注销账户？</h3>
+            <p>注销后将删除所有个人资料、提交记录及头像文件，且无法恢复。</p>
+            <div class="modal-actions">
+              <button class="modal-cancel" @click="closeDeleteModal" :disabled="isDeletingAccount">再想想</button>
+              <button class="modal-confirm" @click="handleDeleteAccount" :disabled="isDeletingAccount">
+                {{ isDeletingAccount ? '正在注销...' : '确认注销' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </transition>
     </div>
   </div>
 </template>
@@ -286,7 +332,7 @@
 import { ref, computed, onMounted, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { fetchProfile, updateProfile, changePassword } from '@/api/auth'
+import { fetchProfile, updateProfile, changePassword, deleteAccount } from '@/api/auth'
 import { uploadFile } from '@/api/files'
 import { userStorage } from '@/utils/storage'
 
@@ -298,10 +344,14 @@ const isEditing = ref(false)
 const isSaving = ref(false)
 const isUploadingAvatar = ref(false)
 const isChangingPassword = ref(false)
+const isDeletingAccount = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
 const passwordError = ref('')
 const passwordSuccess = ref('')
+const deleteError = ref('')
+const deleteSuccess = ref('')
+const showDeleteModal = ref(false)
 const avatarInput = ref(null)
 const avatarPreview = ref('')
 const avatarFile = ref(null)
@@ -620,6 +670,40 @@ const handleChangePassword = async () => {
   }
 }
 
+const openDeleteModal = () => {
+  deleteError.value = ''
+  deleteSuccess.value = ''
+  showDeleteModal.value = true
+}
+
+const closeDeleteModal = () => {
+  if (isDeletingAccount.value) return
+  showDeleteModal.value = false
+}
+
+const handleDeleteAccount = async () => {
+  deleteError.value = ''
+  deleteSuccess.value = ''
+
+  if (!user.value) return
+
+  isDeletingAccount.value = true
+  try {
+    await deleteAccount()
+    deleteSuccess.value = '账户已注销，即将返回登录页'
+    showDeleteModal.value = false
+    authStore.logout()
+    setTimeout(() => {
+      router.push('/login')
+    }, 1500)
+  } catch (err) {
+    console.error('账户注销失败:', err)
+    deleteError.value = err.message || '账户注销失败，请稍后再试'
+  } finally {
+    isDeletingAccount.value = false
+  }
+}
+
 onMounted(() => {
   if (!authStore.user && !authStore.token) {
     authStore.initFromStorage()
@@ -636,17 +720,17 @@ onMounted(() => {
 }
 
 .settings-container {
-  max-width: 900px;
+  max-width: 1200px;
   margin: 0 auto;
   background: #fff;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.08);
   overflow: hidden;
 }
 
 .settings-header {
   padding: 32px 40px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.25);
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: #fff;
 }
@@ -659,7 +743,7 @@ onMounted(() => {
 
 .settings-header p {
   font-size: 14px;
-  opacity: 0.9;
+  opacity: 0.85;
   margin: 0;
 }
 
@@ -687,27 +771,69 @@ onMounted(() => {
 }
 
 .settings-content {
-  padding: 40px;
+  padding: 32px 40px 40px;
+}
+
+.content-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.content-subtitle {
+  margin: 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.settings-layout {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 32px;
+  align-items: flex-start;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 15px 35px rgba(15, 23, 42, 0.06);
+}
+
+.profile-panel {
+  position: sticky;
+  top: 90px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.main-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
 
 .edit-header {
   display: flex;
   justify-content: flex-end;
-  margin-bottom: 24px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid #e5e7eb;
+  gap: 12px;
 }
 
 .edit-btn,
 .save-btn,
 .cancel-btn {
   padding: 10px 24px;
-  border-radius: 8px;
+  border-radius: 999px;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
   border: none;
+  min-width: 110px;
 }
 
 .edit-btn {
@@ -739,34 +865,36 @@ onMounted(() => {
 }
 
 .cancel-btn {
-  background: #ef4444;
-  color: #fff;
+  background: #f3f4f6;
+  color: #1f2937;
 }
 
 .cancel-btn:hover {
-  background: #dc2626;
+  background: #e5e7eb;
 }
 
-section {
-  margin-bottom: 40px;
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
 }
 
-section:last-child {
-  margin-bottom: 0;
-}
-
-section h2 {
+.section-header h2 {
+  margin: 0;
   font-size: 20px;
-  font-weight: 600;
   color: #111827;
-  margin: 0 0 24px 0;
-  padding-bottom: 12px;
-  border-bottom: 2px solid #e5e7eb;
+}
+
+.section-header p {
+  margin: 4px 0 0;
+  color: #6b7280;
+  font-size: 14px;
 }
 
 .info-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 24px;
 }
 
@@ -776,12 +904,16 @@ section h2 {
   gap: 8px;
 }
 
+.info-item.full-width {
+  grid-column: 1 / -1;
+}
+
 .info-item label {
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 13px;
+  font-weight: 600;
   color: #6b7280;
+  letter-spacing: 0.3px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
 }
 
 .info-value {
@@ -792,9 +924,9 @@ section h2 {
 
 .edit-input {
   width: 100%;
-  padding: 10px 14px;
+  padding: 11px 14px;
   border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 15px;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
@@ -807,7 +939,8 @@ section h2 {
 
 .gender-options {
   display: flex;
-  gap: 20px;
+  flex-wrap: wrap;
+  gap: 16px;
   margin-top: 4px;
 }
 
@@ -821,23 +954,11 @@ section h2 {
   user-select: none;
 }
 
-.gender-option input[type="radio"] {
-  width: 18px;
-  height: 18px;
+.gender-option input[type='radio'] {
+  width: 16px;
+  height: 16px;
   cursor: pointer;
   accent-color: #3b82f6;
-}
-
-.gender-option span {
-  transition: color 0.2s ease;
-}
-
-.gender-option:hover span {
-  color: #3b82f6;
-}
-
-.avatar-section {
-  margin-top: 32px;
 }
 
 .avatar-container {
@@ -845,17 +966,17 @@ section h2 {
   flex-direction: column;
   align-items: center;
   gap: 20px;
-  padding: 20px;
+  padding: 12px;
 }
 
 .avatar-preview {
   position: relative;
-  width: 120px;
-  height: 120px;
+  width: 140px;
+  height: 140px;
   border-radius: 50%;
   overflow: hidden;
-  border: 4px solid #e5e7eb;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border: 5px solid #eef2ff;
+  box-shadow: 0 10px 30px rgba(79, 70, 229, 0.25);
 }
 
 .avatar-image {
@@ -866,16 +987,15 @@ section h2 {
 
 .remove-avatar-btn {
   position: absolute;
-  top: 4px;
-  right: 4px;
-  width: 28px;
-  height: 28px;
+  top: 6px;
+  right: 6px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   border: none;
   background: rgba(0, 0, 0, 0.6);
   color: #fff;
-  font-size: 20px;
-  line-height: 1;
+  font-size: 18px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -888,9 +1008,9 @@ section h2 {
 }
 
 .avatar-placeholder {
-  width: 120px;
-  height: 120px;
-  border: 2px dashed #d1d5db;
+  width: 140px;
+  height: 140px;
+  border: 2px dashed #c7d2fe;
   border-radius: 50%;
   display: flex;
   flex-direction: column;
@@ -901,15 +1021,6 @@ section h2 {
   background: #f9fafb;
 }
 
-.avatar-placeholder svg {
-  width: 32px;
-  height: 32px;
-}
-
-.avatar-placeholder span {
-  font-size: 13px;
-}
-
 .avatar-upload-controls {
   display: flex;
   flex-direction: column;
@@ -918,24 +1029,24 @@ section h2 {
 }
 
 .upload-btn {
-  padding: 8px 16px;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  background: #fff;
-  color: #374151;
+  padding: 8px 18px;
+  border: 1px dashed #c7d2fe;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #4c1d95;
   font-size: 14px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .upload-btn:hover:not(:disabled) {
-  border-color: #3b82f6;
-  color: #3b82f6;
-  background: #eff6ff;
+  border-color: #7c3aed;
+  color: #7c3aed;
+  background: #ede9fe;
 }
 
 .upload-btn:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
@@ -944,37 +1055,166 @@ section h2 {
   color: #ef4444;
 }
 
+.meta-section {
+  border-top: 1px dashed #e5e7eb;
+  padding-top: 20px;
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.meta-item {
+  display: flex;
+  flex-direction: column;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.meta-item strong {
+  font-size: 16px;
+  color: #111827;
+  margin-top: 4px;
+}
+
+.stats-section {
+  padding: 0;
+}
+
+.stats-section h2 {
+  margin: 0 0 16px;
+  font-size: 16px;
+  color: #111827;
+  border: none;
+  padding: 0;
+}
+
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 16px;
 }
 
 .stat-item {
   text-align: center;
-  padding: 24px;
+  padding: 20px;
   background: #f9fafb;
-  border-radius: 12px;
+  border-radius: 14px;
   border: 1px solid #e5e7eb;
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.stat-item:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .stat-value {
   font-size: 32px;
   font-weight: 700;
   color: #2563eb;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .stat-label {
-  font-size: 14px;
+  font-size: 13px;
   color: #6b7280;
+}
+
+.password-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.form-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-item label {
+  font-size: 14px;
   font-weight: 500;
+  color: #6b7280;
+  letter-spacing: 0.4px;
+}
+
+.change-password-btn {
+  width: fit-content;
+  padding: 10px 24px;
+  border-radius: 999px;
+  border: none;
+  background: #2563eb;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.change-password-btn:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.change-password-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.password-error,
+.password-success {
+  font-size: 13px;
+  padding: 10px 14px;
+  border-radius: 8px;
+}
+
+.password-error {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.password-success {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.danger-section {
+  border: 1px solid #fee2e2;
+  background: #fff5f5;
+}
+
+.delete-account-btn {
+  padding: 12px 28px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  background: #dc2626;
+  color: #fff;
+  transition: background 0.2s ease;
+  width: fit-content;
+}
+
+.delete-account-btn:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+.delete-account-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.delete-error,
+.delete-success {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.delete-error {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.delete-success {
+  background: #d1fae5;
+  color: #065f46;
 }
 
 .error-message {
@@ -995,70 +1235,99 @@ section h2 {
   font-size: 14px;
 }
 
-.password-section {
-  margin-top: 32px;
-}
-
-.password-form {
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
   display: flex;
-  flex-direction: column;
-  gap: 20px;
-  padding: 20px;
-  background: #f9fafb;
-  border-radius: 12px;
-  border: 1px solid #e5e7eb;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
 }
 
-.form-item {
+.modal-card {
+  width: min(420px, 90vw);
+  background: #fff;
+  border-radius: 20px;
+  padding: 28px;
+  box-shadow: 0 35px 60px rgba(15, 23, 42, 0.35);
+}
+
+.modal-card h3 {
+  margin: 0 0 12px;
+  font-size: 20px;
+  color: #111827;
+}
+
+.modal-card p {
+  margin: 0 0 20px;
+  color: #4b5563;
+  line-height: 1.6;
+}
+
+.modal-actions {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  justify-content: flex-end;
+  gap: 12px;
 }
 
-.form-item label {
+.modal-cancel,
+.modal-confirm {
+  padding: 10px 22px;
+  border-radius: 999px;
+  border: none;
   font-size: 14px;
-  font-weight: 500;
-  color: #6b7280;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.change-password-btn {
-  padding: 10px 24px;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
-  border: none;
-  background: #2563eb;
+}
+
+.modal-cancel {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.modal-cancel:hover {
+  background: #e5e7eb;
+}
+
+.modal-confirm {
+  background: #dc2626;
   color: #fff;
-  align-self: flex-start;
 }
 
-.change-password-btn:hover:not(:disabled) {
-  background: #1d4ed8;
+.modal-confirm:hover:not(:disabled) {
+  background: #b91c1c;
 }
 
-.change-password-btn:disabled {
+.modal-confirm:disabled,
+.modal-cancel:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
-.password-error {
-  font-size: 13px;
-  color: #ef4444;
-  padding: 8px 12px;
-  background: #fee2e2;
-  border-radius: 6px;
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
 }
 
-.password-success {
-  font-size: 13px;
-  color: #065f46;
-  padding: 8px 12px;
-  background: #d1fae5;
-  border-radius: 6px;
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+@media (max-width: 1024px) {
+  .settings-content {
+    padding: 28px 24px 32px;
+  }
+
+  .settings-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-panel {
+    position: static;
+  }
 }
 
 @media (max-width: 768px) {
@@ -1067,25 +1336,35 @@ section h2 {
   }
 
   .settings-content {
-    padding: 24px 20px;
+    padding: 24px 18px 28px;
   }
 
-  .info-grid {
-    grid-template-columns: 1fr;
-    gap: 20px;
+  .content-header {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
-  .stats-grid {
-    grid-template-columns: 1fr;
+  .edit-actions,
+  .edit-header {
+    width: 100%;
   }
 
   .edit-actions {
     flex-direction: column;
   }
 
-  .cancel-btn,
-  .save-btn {
+  .edit-btn,
+  .save-btn,
+  .cancel-btn {
     width: 100%;
+  }
+
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>
