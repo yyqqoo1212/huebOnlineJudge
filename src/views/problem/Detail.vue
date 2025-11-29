@@ -16,14 +16,6 @@
               <span class="meta-value">{{ problem.id }}</span>
             </div>
             <div class="meta-item">
-              <span class="meta-label">类型：</span>
-              <span class="meta-value">{{ getTypeText(problem.type) }}</span>
-            </div>
-            <div class="meta-item">
-              <span class="meta-label">判题模式：</span>
-              <span class="meta-value">{{ getJudgeModeText(problem.judge_mode) }}</span>
-            </div>
-            <div class="meta-item">
               <span class="meta-label">时间限制：</span>
               <span class="meta-value">{{ problem.time_limit }}ms</span>
             </div>
@@ -50,7 +42,7 @@
           <div class="content-section">
             <h2 class="section-title">题目描述</h2>
             <div class="section-content">
-              <p v-if="problem.description">{{ problem.description }}</p>
+              <p v-if="problem.content">{{ problem.content }}</p>
               <p v-else class="placeholder-text">题目描述内容待完善...</p>
             </div>
           </div>
@@ -71,16 +63,34 @@
             </div>
           </div>
 
-          <div class="content-section" v-if="problem.sample_input || problem.sample_output">
+          <div class="content-section" v-if="problem.input_demo || problem.output_demo">
             <h2 class="section-title">样例</h2>
             <div class="sample-container">
-              <div class="sample-item" v-if="problem.sample_input">
-                <h3 class="sample-label">输入：</h3>
-                <pre class="sample-code">{{ problem.sample_input }}</pre>
+              <div class="sample-item" v-if="problem.input_demo">
+                <div class="sample-header">
+                  <h3 class="sample-label">输入：</h3>
+                  <button 
+                    class="btn-copy" 
+                    @click="copyToClipboard(problem.input_demo)"
+                    title="复制输入样例"
+                  >
+                    📋 复制
+                  </button>
+                </div>
+                <pre class="sample-code">{{ problem.input_demo }}</pre>
               </div>
-              <div class="sample-item" v-if="problem.sample_output">
-                <h3 class="sample-label">输出：</h3>
-                <pre class="sample-code">{{ problem.sample_output }}</pre>
+              <div class="sample-item" v-if="problem.output_demo">
+                <div class="sample-header">
+                  <h3 class="sample-label">输出：</h3>
+                  <button 
+                    class="btn-copy" 
+                    @click="copyToClipboard(problem.output_demo)"
+                    title="复制输出样例"
+                  >
+                    📋 复制
+                  </button>
+                </div>
+                <pre class="sample-code">{{ problem.output_demo }}</pre>
               </div>
             </div>
           </div>
@@ -148,6 +158,7 @@ import { cpp } from '@codemirror/lang-cpp'
 import { java } from '@codemirror/lang-java'
 import { python } from '@codemirror/lang-python'
 import { javascript } from '@codemirror/lang-javascript'
+import { getProblemDetail } from '@/api/problem'
 
 export default {
   name: 'ProblemDetail',
@@ -156,23 +167,20 @@ export default {
       problem: {
         id: null,
         title: '',
-        type: 1, // 1-ACM, 2-OI
-        judge_mode: 'default', // default, spj, interactive
         difficulty: 1, // 1-简单, 2-中等, 3-困难
         time_limit: 1000,
         memory_limit: 256,
         submissions: 0,
         accepted_count: 0,
-        status: 1,
-        description: '',
+        content: '',
         input_description: '',
         output_description: '',
-        sample_input: '',
-        sample_output: '',
+        input_demo: '',
+        output_demo: '',
         hint: '',
-        created_at: '',
-        updated_at: ''
+        create_time: ''
       },
+      loading: false,
       selectedLanguage: 'cpp',
       fontSize: 14,
       isDarkTheme: true,
@@ -224,28 +232,61 @@ export default {
         return
       }
 
-      // TODO: 从后端API获取题目详情
-      // 目前使用模拟数据
-      this.problem = {
-        id: parseInt(problemId),
-        title: '两数之和',
-        type: 1,
-        judge_mode: 'default',
-        difficulty: 1,
-        time_limit: 1000,
-        memory_limit: 256,
-        submissions: 12580,
-        accepted_count: 8613,
-        status: 1,
-        description: '给定一个整数数组 nums 和一个整数目标值 target，请你在该数组中找出 和为目标值 target 的那 两个 整数，并返回它们的数组下标。\n\n你可以假设每种输入只会对应一个答案。但是，数组中同一个元素在答案里不能重复出现。\n\n你可以按任意顺序返回答案。',
-        input_description: '第一行输入一个整数 n，表示数组长度。\n第二行输入 n 个整数，表示数组元素。\n第三行输入一个整数 target，表示目标值。',
-        output_description: '输出两个整数，表示满足条件的两个元素的下标（从0开始）。',
-        sample_input: '4\n2 7 11 15\n9',
-        sample_output: '0 1',
-        hint: '可以使用哈希表来优化时间复杂度。',
-        created_at: '2024-01-01 00:00:00',
-        updated_at: '2024-01-01 00:00:00'
+      this.loading = true
+      try {
+        const response = await getProblemDetail(problemId)
+        
+        if (response.code === 'success' && response.data) {
+          const data = response.data
+          this.problem = {
+            id: data.id,
+            title: data.title,
+            difficulty: data.difficulty,
+            time_limit: data.time_limit,
+            memory_limit: data.memory_limit,
+            submissions: data.submissions,
+            accepted_count: data.accepted_count,
+            content: data.content || '',
+            input_description: data.input_description || '',
+            output_description: data.output_description || '',
+            input_demo: data.input_demo || '',
+            output_demo: data.output_demo || '',
+            hint: data.hint || '',
+            create_time: data.create_time || ''
+          }
+        } else {
+          this.$message?.error(response.message || '获取题目详情失败')
+          this.$router.push('/problems')
+        }
+      } catch (error) {
+        console.error('获取题目详情失败:', error)
+        this.$message?.error(error.message || '获取题目详情失败，请稍后重试')
+        this.$router.push('/problems')
+      } finally {
+        this.loading = false
       }
+    },
+    copyToClipboard(text) {
+      if (!text) return
+      
+      navigator.clipboard.writeText(text).then(() => {
+        this.$message?.success('已复制到剪贴板')
+      }).catch(() => {
+        // 降级方案
+        const textarea = document.createElement('textarea')
+        textarea.value = text
+        textarea.style.position = 'fixed'
+        textarea.style.opacity = '0'
+        document.body.appendChild(textarea)
+        textarea.select()
+        try {
+          document.execCommand('copy')
+          this.$message?.success('已复制到剪贴板')
+        } catch (err) {
+          this.$message?.error('复制失败，请手动复制')
+        }
+        document.body.removeChild(textarea)
+      })
     },
     initEditor() {
       // 确保容器存在
@@ -544,21 +585,6 @@ export default {
       }
       return map[difficulty] || 'easy'
     },
-    getTypeText(type) {
-      const map = {
-        1: 'ACM',
-        2: 'OI'
-      }
-      return map[type] || 'ACM'
-    },
-    getJudgeModeText(judgeMode) {
-      const map = {
-        'default': '标准判题',
-        'spj': '特殊判题',
-        'interactive': '交互判题'
-      }
-      return map[judgeMode] || judgeMode
-    },
     getPassRate() {
       if (this.problem.submissions === 0) {
         return 0
@@ -702,11 +728,43 @@ export default {
   margin-bottom: 8px;
 }
 
+.sample-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
 .sample-label {
   font-size: 15px;
   color: #333333;
-  margin: 0 0 8px 0;
+  margin: 0;
   font-weight: 500;
+}
+
+.btn-copy {
+  padding: 4px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  background-color: #ffffff;
+  color: #666666;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  outline: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-copy:hover {
+  border-color: #1890ff;
+  color: #1890ff;
+  background-color: #f0f7ff;
+}
+
+.btn-copy:active {
+  transform: scale(0.95);
 }
 
 .sample-code {

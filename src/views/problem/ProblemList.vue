@@ -35,9 +35,13 @@
           <div class="col-pass-rate">通过率</div>
         </div>
 
-        <div v-if="filteredProblems.length > 0">
+        <div v-if="loading" class="loading-state">
+          <p class="loading-text">加载中...</p>
+        </div>
+
+        <div v-else-if="problems.length > 0">
           <div 
-            v-for="problem in filteredProblems" 
+            v-for="problem in problems" 
             :key="problem.id"
             class="table-row"
             @click="goToProblem(problem.id)"
@@ -54,6 +58,7 @@
               >
                 {{ tag }}
               </span>
+              <span v-if="problem.tags.length === 0" class="no-tags">-</span>
             </div>
             <div class="col-difficulty">
               <span :class="['difficulty-badge', `difficulty-${problem.difficulty}`]">
@@ -79,11 +84,64 @@
           <p class="empty-hint">请尝试调整搜索条件或难度筛选</p>
         </div>
       </div>
+
+      <!-- 翻页器 -->
+      <div v-if="!loading && pagination.total_pages > 0" class="pagination-container">
+        <div class="pagination-info">
+          <span>共 {{ pagination.total }} 题</span>
+          <span class="page-info">第 {{ pagination.page }} / {{ pagination.total_pages }} 页</span>
+        </div>
+        <div class="pagination">
+          <button 
+            class="pagination-btn"
+            :disabled="!pagination.has_previous || loading"
+            @click="handlePageChange(pagination.page - 1)"
+          >
+            上一页
+          </button>
+          
+          <div class="pagination-pages">
+            <button
+              v-for="page in getPageNumbers()"
+              :key="page"
+              :class="['pagination-page-btn', { active: page === pagination.page, ellipsis: page === '...' }]"
+              :disabled="page === '...' || loading"
+              @click="page !== '...' && handlePageChange(page)"
+            >
+              {{ page }}
+            </button>
+          </div>
+          
+          <button 
+            class="pagination-btn"
+            :disabled="!pagination.has_next || loading"
+            @click="handlePageChange(pagination.page + 1)"
+          >
+            下一页
+          </button>
+        </div>
+        <div class="page-size-selector">
+          <span>每页显示：</span>
+          <select 
+            :value="pagination.page_size" 
+            @change="handlePageSizeChange(Number($event.target.value))"
+            :disabled="loading"
+            class="page-size-select"
+          >
+            <option value="10">10</option>
+            <option value="20">20</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script>
+import { getProblemList } from '@/api/problem'
+
 export default {
   name: 'ProblemList',
   data() {
@@ -91,59 +149,90 @@ export default {
       searchQuery: '',
       selectedDifficulty: null,
       difficultyOptions: [
-        { value: 'easy', label: '简单' },
-        { value: 'medium', label: '中等' },
-        { value: 'hard', label: '困难' }
+        { value: 'easy', label: '简单', level: 1 },
+        { value: 'medium', label: '中等', level: 2 },
+        { value: 'hard', label: '困难', level: 3 }
       ],
-      problems: [
-        {
-          id: 1001,
-          title: '两数之和',
-          tags: ['数组', '哈希表'],
-          difficulty: 'easy',
-          submissions: 12580,
-          passRate: 68.5
-        },
-        {
-          id: 1002,
-          title: '两数相加',
-          tags: [],
-          difficulty: 'medium',
-          submissions: 8920,
-          passRate: 45.2
-        }
-      ]
+      problems: [],
+      loading: false,
+      pagination: {
+        page: 1,
+        page_size: 20,
+        total: 0,
+        total_pages: 0,
+        has_next: false,
+        has_previous: false
+      }
     }
   },
-  computed: {
-    filteredProblems() {
-      let result = this.problems
-
-      // 难度筛选
-      if (this.selectedDifficulty) {
-        result = result.filter(problem => problem.difficulty === this.selectedDifficulty)
-      }
-
-      // 搜索筛选（题号或标题）
-      if (this.searchQuery.trim()) {
-        const query = this.searchQuery.trim().toLowerCase()
-        result = result.filter(problem => {
-          // 搜索题号
-          if (problem.id.toString().includes(query)) {
-            return true
-          }
-          // 搜索标题
-          if (problem.title.toLowerCase().includes(query)) {
-            return true
-          }
-          return false
-        })
-      }
-
-      return result
+  mounted() {
+    this.fetchProblems()
+  },
+  watch: {
+    // 监听搜索和筛选变化，延迟执行避免频繁请求
+    searchQuery() {
+      this.debounceSearch()
+    },
+    selectedDifficulty() {
+      this.pagination.page = 1
+      this.fetchProblems()
     }
   },
   methods: {
+    // 防抖搜索
+    debounceSearch() {
+      if (this.searchTimer) {
+        clearTimeout(this.searchTimer)
+      }
+      this.searchTimer = setTimeout(() => {
+        this.pagination.page = 1
+        this.fetchProblems()
+      }, 500)
+    },
+    // 获取题目列表
+    async fetchProblems() {
+      this.loading = true
+      try {
+        const params = {
+          page: this.pagination.page,
+          page_size: this.pagination.page_size
+        }
+        
+        // 添加搜索参数
+        if (this.searchQuery.trim()) {
+          params.search = this.searchQuery.trim()
+        }
+        
+        // 添加难度筛选参数
+        if (this.selectedDifficulty) {
+          const difficultyOption = this.difficultyOptions.find(
+            opt => opt.value === this.selectedDifficulty
+          )
+          if (difficultyOption) {
+            params.level = difficultyOption.level
+          }
+        }
+        
+        const response = await getProblemList(params)
+        
+        if (response.code === 'success' && response.data) {
+          this.problems = response.data.problems || []
+          this.pagination = {
+            ...this.pagination,
+            ...response.data.pagination
+          }
+        } else {
+          this.$message?.error(response.message || '获取题目列表失败')
+          this.problems = []
+        }
+      } catch (error) {
+        console.error('获取题目列表失败:', error)
+        this.$message?.error(error.message || '获取题目列表失败，请稍后重试')
+        this.problems = []
+      } finally {
+        this.loading = false
+      }
+    },
     getDifficultyText(difficulty) {
       const map = {
         'easy': '简单',
@@ -162,6 +251,64 @@ export default {
     },
     goToProblem(id) {
       this.$router.push(`/problems/${id}`)
+    },
+    // 翻页方法
+    handlePageChange(page) {
+      this.pagination.page = page
+      this.fetchProblems()
+      // 滚动到顶部
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    },
+    handlePageSizeChange(pageSize) {
+      this.pagination.page_size = pageSize
+      this.pagination.page = 1
+      this.fetchProblems()
+    },
+    // 生成页码数组（带省略号）
+    getPageNumbers() {
+      const current = this.pagination.page
+      const total = this.pagination.total_pages
+      const pages = []
+      
+      if (total <= 7) {
+        // 总页数少于等于7，显示所有页码
+        for (let i = 1; i <= total; i++) {
+          pages.push(i)
+        }
+      } else {
+        // 总页数大于7，显示部分页码和省略号
+        if (current <= 3) {
+          // 当前页在前3页
+          for (let i = 1; i <= 4; i++) {
+            pages.push(i)
+          }
+          pages.push('...')
+          pages.push(total)
+        } else if (current >= total - 2) {
+          // 当前页在后3页
+          pages.push(1)
+          pages.push('...')
+          for (let i = total - 3; i <= total; i++) {
+            pages.push(i)
+          }
+        } else {
+          // 当前页在中间
+          pages.push(1)
+          pages.push('...')
+          for (let i = current - 1; i <= current + 1; i++) {
+            pages.push(i)
+          }
+          pages.push('...')
+          pages.push(total)
+        }
+      }
+      
+      return pages
+    }
+  },
+  beforeUnmount() {
+    if (this.searchTimer) {
+      clearTimeout(this.searchTimer)
     }
   }
 }
@@ -445,6 +592,166 @@ export default {
 .empty-hint {
   font-size: 14px;
   color: #999999;
+}
+
+.loading-state {
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.loading-text {
+  font-size: 16px;
+  color: #666666;
+}
+
+.no-tags {
+  color: #999999;
+  font-size: 12px;
+}
+
+.pagination-container {
+  margin-top: 24px;
+  padding: 20px 24px;
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.pagination-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 14px;
+  color: #666666;
+}
+
+.page-info {
+  color: #1890ff;
+  font-weight: 500;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pagination-btn {
+  padding: 6px 16px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  background-color: #ffffff;
+  color: #333333;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  outline: none;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  border-color: #1890ff;
+  color: #1890ff;
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-pages {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pagination-page-btn {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  background-color: #ffffff;
+  color: #333333;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  outline: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pagination-page-btn:hover:not(:disabled):not(.ellipsis) {
+  border-color: #1890ff;
+  color: #1890ff;
+}
+
+.pagination-page-btn.active {
+  background-color: #1890ff;
+  border-color: #1890ff;
+  color: #ffffff;
+}
+
+.pagination-page-btn.ellipsis {
+  border: none;
+  cursor: default;
+  background-color: transparent;
+}
+
+.pagination-page-btn:disabled {
+  cursor: not-allowed;
+}
+
+.page-size-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #666666;
+}
+
+.page-size-select {
+  padding: 4px 8px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  font-size: 14px;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.page-size-select:focus {
+  border-color: #1890ff;
+}
+
+.page-size-select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .pagination-container {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .pagination {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .pagination-info {
+    justify-content: center;
+  }
+
+  .page-size-selector {
+    justify-content: center;
+  }
 }
 
 @media (max-width: 768px) {
