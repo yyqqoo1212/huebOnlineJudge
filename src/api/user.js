@@ -45,3 +45,7 @@ export const deleteAccount = () => http.delete('/users/delete-account')
 export const getUserList = (params = {}) =>
   http.get('/users/list', { params })
 
+// 管理员接口：删除用户
+export const deleteUser = (userId) =>
+  http.delete(`/users/${userId}/delete`)
+
