@@ -1,79 +1,20 @@
 <template>
-  <div class="submission-list">
-    <div class="submission-list-container">
+  <div class="submission-history">
+    <div class="submission-history-container">
       <div class="page-header">
-        <h1>提交记录</h1>
-        <p class="subtitle">查看所有用户的提交记录</p>
-      </div>
-
-      <!-- 筛选栏 -->
-      <div class="filter-bar">
-        <div class="filter-group">
-          <label class="filter-label">题目ID：</label>
-          <input 
-            v-model="filters.problem_id" 
-            type="text"
-            placeholder="输入题目ID"
-            class="filter-input"
-          />
+        <div class="header-content">
+          <div class="header-left">
+            <button class="btn-back" @click="goBack">
+              ← 返回题目
+            </button>
+            <h1>我的提交记录</h1>
+            <p class="subtitle">题目 #{{ problemId }}: {{ problemTitle }}</p>
+          </div>
         </div>
-
-        <div class="filter-group">
-          <label class="filter-label">语言：</label>
-          <select 
-            v-model="filters.language" 
-            @change="handleFilterChange"
-            class="filter-select"
-            :disabled="loading"
-          >
-            <option value="">全部</option>
-            <option value="cpp">C++</option>
-            <option value="java">Java</option>
-            <option value="python">Python</option>
-            <option value="javascript">JavaScript</option>
-          </select>
-        </div>
-
-        <div class="filter-group">
-          <label class="filter-label">状态：</label>
-          <select 
-            v-model="filters.status" 
-            @change="handleFilterChange"
-            class="filter-select"
-            :disabled="loading"
-          >
-            <option value="">全部</option>
-            <option value="0">Accepted</option>
-            <option value="-1">Wrong Answer</option>
-            <option value="1">Time Limit Exceeded</option>
-            <option value="3">Memory Limit Exceeded</option>
-            <option value="4">Runtime Error</option>
-            <option value="5">Compile Error</option>
-            <option value="6">System Error</option>
-            <option value="7">Judging</option>
-          </select>
-        </div>
-
-        <div class="filter-group">
-          <label class="filter-label">测评ID：</label>
-          <input 
-            v-model="filters.submission_id" 
-            type="text"
-            placeholder="输入测评ID"
-            class="filter-input"
-          />
-        </div>
-
-        <button 
-          class="btn-clear-filters" 
-          @click="clearFilters"
-          :disabled="loading"
-        >
-          清除筛选
-        </button>
       </div>
 
       <div v-if="loading" class="loading-container">
+        <div class="loading-spinner"></div>
         <p>加载中...</p>
       </div>
 
@@ -85,13 +26,11 @@
       <div v-else class="submission-table">
         <div class="table-header">
           <div class="col-id">测评ID</div>
-          <div class="col-problem">题目</div>
           <div class="col-status">状态</div>
           <div class="col-time">运行时间</div>
           <div class="col-memory">运行内存</div>
           <div class="col-length">代码长度</div>
           <div class="col-language">语言</div>
-          <div class="col-user">提交用户</div>
           <div class="col-submit-time">提交时间</div>
         </div>
 
@@ -107,11 +46,6 @@
                 {{ submission.submission_id }}
               </span>
             </div>
-            <div class="col-problem">
-              <span class="problem-link" @click.stop="goToProblem(submission.problem_id)">
-                {{ submission.problem_title }}
-              </span>
-            </div>
             <div class="col-status">
               <span :class="['status-badge', getStatusClass(submission.status)]">
                 {{ submission.status_text }}
@@ -121,11 +55,6 @@
             <div class="col-memory">{{ formatMemory(submission.memory) }}KB</div>
             <div class="col-length">{{ submission.code_length }}B</div>
             <div class="col-language">{{ getLanguageName(submission.language) }}</div>
-            <div class="col-user">
-              <span class="user-link" @click.stop="goToUser(submission.user_id)">
-                {{ submission.username }}
-              </span>
-            </div>
             <div class="col-submit-time">{{ formatDateTime(submission.submit_time) }}</div>
           </div>
         </div>
@@ -189,12 +118,19 @@
 </template>
 
 <script>
-import { getSubmissionList } from '@/api/problem'
+import { getSubmissionList, getProblemDetail } from '@/api/problem'
+import { useAuth } from '@/composbles/useAuth'
 
 export default {
-  name: 'SubmissionList',
+  name: 'ProblemSubmissionHistory',
+  setup() {
+    const { userId, isLoggedIn } = useAuth()
+    return { userId, isLoggedIn }
+  },
   data() {
     return {
+      problemId: null,
+      problemTitle: '',
       submissions: [],
       loading: true,
       error: null,
@@ -205,109 +141,55 @@ export default {
         total_pages: 0,
         has_next: false,
         has_previous: false
-      },
-      filters: {
-        problem_id: '',
-        language: '',
-        status: '',
-        submission_id: ''
-      },
-      problemIdTimer: null,
-      submissionIdTimer: null
+      }
     }
   },
   mounted() {
+    this.problemId = parseInt(this.$route.params.id)
+    if (!this.isLoggedIn) {
+      this.$message?.warning('请先登录')
+      this.$router.push('/login')
+      return
+    }
+    this.loadProblemTitle()
     this.loadSubmissions()
   },
   watch: {
-    // 监听题目ID变化，使用防抖（参考题库页面的实现）
-    'filters.problem_id'() {
-      this.debounceProblemId()
-    },
-    // 监听测评ID变化，使用防抖（参考题库页面的实现）
-    'filters.submission_id'() {
-      this.debounceSubmissionId()
+    '$route.params.id'() {
+      this.problemId = parseInt(this.$route.params.id)
+      this.loadProblemTitle()
+      this.loadSubmissions()
     }
   },
   methods: {
-    debounceProblemId() {
-      // 清除之前的定时器
-      if (this.problemIdTimer) {
-        clearTimeout(this.problemIdTimer)
+    async loadProblemTitle() {
+      try {
+        const response = await getProblemDetail(this.problemId)
+        if (response.code === 'success' && response.data) {
+          this.problemTitle = response.data.title || `题目 ${this.problemId}`
+        }
+      } catch (error) {
+        console.error('获取题目信息失败:', error)
+        this.problemTitle = `题目 ${this.problemId}`
       }
-      // 设置新的防抖定时器
-      this.problemIdTimer = setTimeout(() => {
-        this.pagination.page = 1
-        this.loadSubmissions()
-        this.problemIdTimer = null
-      }, 800)
-    },
-    debounceSubmissionId() {
-      // 清除之前的定时器
-      if (this.submissionIdTimer) {
-        clearTimeout(this.submissionIdTimer)
-      }
-      // 设置新的防抖定时器
-      this.submissionIdTimer = setTimeout(() => {
-        this.pagination.page = 1
-        this.loadSubmissions()
-        this.submissionIdTimer = null
-      }, 800)
-    },
-    handleFilterChange() {
-      // 重置到第一页
-      this.pagination.page = 1
-      this.loadSubmissions()
-    },
-    clearFilters() {
-      // 清除定时器
-      if (this.problemIdTimer) {
-        clearTimeout(this.problemIdTimer)
-        this.problemIdTimer = null
-      }
-      if (this.submissionIdTimer) {
-        clearTimeout(this.submissionIdTimer)
-        this.submissionIdTimer = null
-      }
-      this.filters = {
-        problem_id: '',
-        language: '',
-        status: '',
-        submission_id: ''
-      }
-      this.handleFilterChange()
     },
     async loadSubmissions() {
+      if (!this.isLoggedIn || !this.userId) {
+        this.error = '请先登录'
+        this.loading = false
+        return
+      }
+
       this.loading = true
       this.error = null
 
       try {
-        const params = {
+        const response = await getSubmissionList({
           page: this.pagination.page,
-          page_size: this.pagination.page_size
-        }
-
-        // 添加筛选参数
-        if (this.filters.problem_id && this.filters.problem_id.trim()) {
-          const problemId = parseInt(this.filters.problem_id.trim())
-          if (!isNaN(problemId) && problemId > 0) {
-            params.problem_id = problemId
-          }
-        }
-        if (this.filters.language) {
-          params.language = this.filters.language
-        }
-        if (this.filters.status !== '') {
-          params.status = parseInt(this.filters.status)
-        }
-        if (this.filters.submission_id && this.filters.submission_id.trim()) {
-          const submissionId = parseInt(this.filters.submission_id.trim())
-          if (!isNaN(submissionId) && submissionId > 0) {
-            params.submission_id = submissionId
-          }
-        }
-
-        const response = await getSubmissionList(params)
+          page_size: this.pagination.page_size,
+          problem_id: this.problemId,
+          user_id: this.userId
+        })
 
         if (response.code === 'success' && response.data) {
           this.submissions = response.data.submissions || []
@@ -386,40 +268,12 @@ export default {
         params: { id: submissionId }
       })
     },
-    goToProblem(problemId) {
-      // 跳转到题目详情页面
+    goBack() {
+      // 返回题目详情页面
       this.$router.push({
         name: 'ProblemDetail',
-        params: { id: problemId }
+        params: { id: this.problemId }
       })
-    },
-    goToUser(userId) {
-      // 后续实现：跳转到用户主页
-      console.log('跳转到用户主页:', userId)
-    },
-    formatDateTime(dateTimeStr) {
-      if (!dateTimeStr) return ''
-      const date = new Date(dateTimeStr)
-      const year = date.getFullYear()
-      const month = String(date.getMonth() + 1).padStart(2, '0')
-      const day = String(date.getDate()).padStart(2, '0')
-      const hours = String(date.getHours()).padStart(2, '0')
-      const minutes = String(date.getMinutes()).padStart(2, '0')
-      const seconds = String(date.getSeconds()).padStart(2, '0')
-      return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
-    },
-    formatMemory(memoryBytes) {
-      if (!memoryBytes) return '0'
-      return Math.round(memoryBytes / 1024)
-    },
-    getLanguageName(lang) {
-      const map = {
-        'cpp': 'C++',
-        'java': 'Java',
-        'python': 'Python',
-        'javascript': 'JavaScript'
-      }
-      return map[lang] || lang
     },
     getStatusClass(status) {
       const statusMap = {
@@ -434,19 +288,43 @@ export default {
         7: 'status-judging'
       }
       return statusMap[status] || 'status-unknown'
+    },
+    getLanguageName(language) {
+      const map = {
+        'cpp': 'C++',
+        'java': 'Java',
+        'python': 'Python',
+        'javascript': 'JavaScript'
+      }
+      return map[language] || language
+    },
+    formatMemory(memoryBytes) {
+      if (!memoryBytes) return '0'
+      return Math.round(memoryBytes / 1024)
+    },
+    formatDateTime(dateTime) {
+      if (!dateTime) return '-'
+      const date = new Date(dateTime)
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      const hours = String(date.getHours()).padStart(2, '0')
+      const minutes = String(date.getMinutes()).padStart(2, '0')
+      const seconds = String(date.getSeconds()).padStart(2, '0')
+      return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
     }
   }
 }
 </script>
 
 <style scoped>
-.submission-list {
+.submission-history {
   min-height: calc(100vh - 60px);
   background-color: #f5f5f5;
-  padding: 40px 20px;
+  padding: 20px;
 }
 
-.submission-list-container {
+.submission-history-container {
   max-width: 1400px;
   margin: 0 auto;
 }
@@ -459,81 +337,20 @@ export default {
   margin-bottom: 20px;
 }
 
-.filter-bar {
-  background-color: #ffffff;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  padding: 20px 24px;
-  margin-bottom: 20px;
+.header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.header-left {
   display: flex;
   align-items: center;
   gap: 16px;
   flex-wrap: wrap;
 }
 
-.filter-group {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.filter-label {
-  font-size: 14px;
-  color: #666666;
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-.filter-select {
-  padding: 6px 12px;
-  border: 1px solid #d9d9d9;
-  border-radius: 6px;
-  font-size: 14px;
-  color: #333333;
-  background-color: #ffffff;
-  cursor: pointer;
-  outline: none;
-  transition: all 0.3s ease;
-  min-width: 150px;
-}
-
-.filter-select:focus {
-  border-color: #1890ff;
-  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
-}
-
-.filter-select:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.filter-input {
-  padding: 6px 12px;
-  border: 1px solid #d9d9d9;
-  border-radius: 6px;
-  font-size: 14px;
-  color: #333333;
-  background-color: #ffffff;
-  outline: none;
-  transition: all 0.3s ease;
-  min-width: 180px;
-}
-
-.filter-input:focus {
-  border-color: #1890ff;
-  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
-}
-
-.filter-input:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.filter-input::placeholder {
-  color: #999999;
-}
-
-.btn-clear-filters {
+.btn-back {
   padding: 6px 16px;
   border: 1px solid #d9d9d9;
   border-radius: 6px;
@@ -543,35 +360,59 @@ export default {
   cursor: pointer;
   transition: all 0.3s ease;
   outline: none;
-  white-space: nowrap;
-  margin-left: auto;
 }
 
-.btn-clear-filters:hover:not(:disabled) {
-  border-color: #ff4d4f;
-  color: #ff4d4f;
-  background-color: #fff1f0;
-}
-
-.btn-clear-filters:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.btn-back:hover {
+  border-color: #1890ff;
+  color: #1890ff;
+  background-color: #f0f7ff;
 }
 
 .page-header h1 {
-  font-size: 32px;
+  font-size: 24px;
   color: #333333;
-  margin-bottom: 8px;
+  margin: 0;
+  font-weight: 600;
 }
 
 .subtitle {
-  font-size: 16px;
+  font-size: 14px;
   color: #666666;
+  margin: 4px 0 0 0;
 }
 
-.loading-container,
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f0f0f0;
+  border-top-color: #1890ff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .error-container {
-  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   padding: 60px 20px;
   background-color: #ffffff;
   border-radius: 8px;
@@ -581,11 +422,11 @@ export default {
 .error-text {
   color: #ff4d4f;
   font-size: 16px;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .btn-retry {
-  padding: 8px 24px;
+  padding: 8px 20px;
   border: 1px solid #1890ff;
   border-radius: 6px;
   background-color: #1890ff;
@@ -593,6 +434,7 @@ export default {
   font-size: 14px;
   cursor: pointer;
   transition: all 0.3s ease;
+  outline: none;
 }
 
 .btn-retry:hover {
@@ -609,7 +451,7 @@ export default {
 
 .table-header {
   display: grid;
-  grid-template-columns: 100px 1fr 120px 120px 120px 120px 100px 120px 180px;
+  grid-template-columns: 100px 120px 120px 120px 120px 100px 180px;
   gap: 20px;
   padding: 8px 24px;
   background-color: #fafafa;
@@ -621,7 +463,7 @@ export default {
 
 .table-row {
   display: grid;
-  grid-template-columns: 100px 1fr 120px 120px 120px 120px 100px 120px 180px;
+  grid-template-columns: 100px 120px 120px 120px 120px 100px 180px;
   gap: 20px;
   padding: 8px 24px;
   border-bottom: 1px solid #f0f0f0;
@@ -630,13 +472,7 @@ export default {
 }
 
 .table-row:hover {
-  background-color: #f8f9fa;
-  transform: translateX(4px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
-.table-row:last-child {
-  border-bottom: none;
+  background-color: #fafafa;
 }
 
 .col-id {
@@ -646,25 +482,13 @@ export default {
 
 .id-link {
   color: #1890ff;
-  font-weight: 600;
-  transition: all 0.2s ease;
-}
-
-.col-problem {
-  display: flex;
-  align-items: center;
-}
-
-.problem-link {
-  color: #333333;
   font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  text-decoration: none;
+  transition: color 0.2s;
 }
 
-.problem-link:hover {
-  color: #1890ff;
-  text-decoration: underline;
+.id-link:hover {
+  color: #40a9ff;
 }
 
 .col-status {
@@ -675,7 +499,7 @@ export default {
 .status-badge {
   padding: 4px 12px;
   border-radius: 4px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   white-space: nowrap;
 }
@@ -734,55 +558,15 @@ export default {
   border: 1px solid #d9d9d9;
 }
 
-.col-time {
-  display: flex;
-  align-items: center;
-  color: #666666;
-  font-size: 14px;
-}
-
-.col-memory {
-  display: flex;
-  align-items: center;
-  color: #666666;
-  font-size: 14px;
-}
-
-.col-length {
-  display: flex;
-  align-items: center;
-  color: #666666;
-  font-size: 14px;
-}
-
-.col-language {
-  display: flex;
-  align-items: center;
-  color: #666666;
-  font-size: 14px;
-}
-
-.col-user {
-  display: flex;
-  align-items: center;
-}
-
-.user-link {
-  color: #1890ff;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.user-link:hover {
-  color: #40a9ff;
-  text-decoration: underline;
-}
-
+.col-time,
+.col-memory,
+.col-length,
+.col-language,
 .col-submit-time {
   display: flex;
   align-items: center;
-  color: #666666;
   font-size: 14px;
+  color: #333333;
 }
 
 .empty-state {
@@ -791,8 +575,8 @@ export default {
 }
 
 .empty-text {
-  font-size: 18px;
-  color: #666666;
+  color: #999999;
+  font-size: 16px;
 }
 
 .pagination-container {
@@ -920,19 +704,10 @@ export default {
   cursor: not-allowed;
 }
 
-@media (max-width: 1400px) {
-  .table-header,
-  .table-row {
-    grid-template-columns: 90px 1fr 110px 110px 110px 110px 90px 110px 160px;
-    gap: 15px;
-    padding: 8px 20px;
-  }
-}
-
 @media (max-width: 1200px) {
   .table-header,
   .table-row {
-    grid-template-columns: 80px 1fr 100px 100px 100px 100px 80px 100px 150px;
+    grid-template-columns: 80px 100px 100px 100px 100px 80px 150px;
     gap: 12px;
     padding: 8px 16px;
   }
@@ -945,7 +720,7 @@ export default {
 
   .table-header,
   .table-row {
-    min-width: 1400px;
+    min-width: 1000px;
   }
 
   .pagination-container {
@@ -965,25 +740,6 @@ export default {
   .page-size-selector {
     justify-content: center;
   }
-
-  .filter-bar {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .filter-group {
-    width: 100%;
-  }
-
-  .filter-select,
-  .filter-input {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .btn-clear-filters {
-    margin-left: 0;
-    width: 100%;
-  }
 }
 </style>
+

@@ -94,3 +94,59 @@ export const deleteProblem = (problemId) => {
   return http.delete(`/problems/${problemId}/delete`)
 }
 
+/**
+ * 运行自测
+ * @param {number} problemId - 题目ID
+ * @param {Object} data - 运行数据
+ * @param {string} data.code - 源代码
+ * @param {string} data.language - 语言类型 ('cpp', 'java', 'python', 'javascript')
+ * @param {string} data.test_input - 测试用例输入
+ * @returns {Promise}
+ */
+export const runTest = (problemId, data) => {
+  return http.post(`/problems/${problemId}/run-test`, {
+    code: data.code,
+    language: data.language,
+    test_input: data.test_input
+  })
+}
+
+/**
+ * 提交代码进行判题
+ * @param {number} problemId - 题目ID
+ * @param {Object} data - 提交数据
+ * @param {string} data.code - 源代码
+ * @param {string} data.language - 语言类型 ('cpp', 'java', 'python', 'javascript')
+ * @returns {Promise}
+ */
+export const submitCode = (problemId, data) => {
+  return http.post(`/problems/${problemId}/submit`, {
+    code: data.code,
+    language: data.language
+  })
+}
+
+/**
+ * 获取提交列表
+ * @param {Object} params - 查询参数
+ * @param {number} params.page - 页码（默认1）
+ * @param {number} params.page_size - 每页数量（默认20）
+ * @param {number} params.problem_id - 题目ID筛选（可选）
+ * @param {number} params.submission_id - 测评ID筛选（可选）
+ * @param {number} params.status - 状态筛选（可选）
+ * @param {string} params.language - 语言筛选（可选）
+ * @returns {Promise}
+ */
+export const getSubmissionList = (params = {}) => {
+  return http.get('/problems/submissions/list', { params })
+}
+
+/**
+ * 获取提交详情
+ * @param {number} submissionId - 提交ID
+ * @returns {Promise}
+ */
+export const getSubmissionDetail = (submissionId) => {
+  return http.get(`/problems/submissions/${submissionId}`)
+}
+

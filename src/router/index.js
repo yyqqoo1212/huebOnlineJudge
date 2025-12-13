@@ -6,6 +6,8 @@ import CourseList from '../views/course/CourseList.vue'
 import ContestList from '../views/contest/ContestList.vue'
 import RankingList from '../views/rank/RankingList.vue'
 import SubmissionList from '../views/submission/SubmissionList.vue'
+import SubmissionDetail from '../views/submission/Detail.vue'
+import ProblemSubmissionHistory from '../views/problem/SubmissionHistory.vue'
 import DiscussionList from '../views/disscussion/DiscussionList.vue'
 
 import Register from '../views/auth/Register.vue'
@@ -54,6 +56,12 @@ const routes = [
     component: ProblemDetail
   },
   {
+    path: '/problems/:id/submissions',
+    name: 'ProblemSubmissionHistory',
+    component: ProblemSubmissionHistory,
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/courses',
     name: 'CourseList',
     component: CourseList
@@ -72,6 +80,12 @@ const routes = [
     path: '/submissions',
     name: 'SubmissionList',
     component: SubmissionList
+  },
+  {
+    path: '/submissions/:id',
+    name: 'SubmissionDetail',
+    component: SubmissionDetail,
+    meta: { requiresAuth: true }
   },
   {
     path: '/discussions',

@@ -9,6 +9,13 @@
             <span :class="['difficulty-badge', `difficulty-${getDifficultyClass(problem.difficulty)}`]">
               {{ getDifficultyText(problem.difficulty) }}
             </span>
+            <button 
+              class="btn-submission-history" 
+              @click="goToSubmissionHistory"
+              title="查看我的提交记录"
+            >
+              📋 提交记录
+            </button>
           </div>
           <div class="problem-meta">
             <div class="meta-item">
@@ -127,6 +134,17 @@
               <option value="javascript">JavaScript</option>
             </select>
           </div>
+          <!-- 提交状态显示区域 -->
+          <div 
+            v-if="submissionStatus !== null" 
+            class="submission-status"
+            :class="getSubmissionStatusClass()"
+            @click="goToSubmissionDetail"
+            :title="submissionStatus === 'Judging' ? '判题中...' : '点击查看详情'"
+          >
+            <span v-if="submissionStatus === 'Judging'" class="status-spinner">⟳</span>
+            <span class="status-text">{{ submissionStatus }}</span>
+          </div>
           <div class="code-actions">
             <div class="editor-settings">
               <div class="font-size-selector">
@@ -165,7 +183,8 @@
         
         <!-- 在线自测面板 -->
         <transition name="slide-up">
-          <div v-if="showTestPanel" class="test-panel">
+          <div v-if="showTestPanel" class="test-panel" :style="{ height: testPanelHeight + 'px' }">
+            <div class="test-panel-resizer" @mousedown="startResize"></div>
             <div class="test-panel-content">
             <div class="test-input-section">
               <div class="test-section-header">
@@ -196,13 +215,30 @@
                 <button 
                   class="btn-run-test" 
                   @click="runTest"
-                  :disabled="!testInput.trim()"
+                  :disabled="!testInput.trim() || testRunning"
                 >
-                  ▶ 运行自测
+                  {{ testRunning ? '运行中...' : '▶ 运行自测' }}
                 </button>
               </div>
               <div class="test-output-area">
-                <pre v-if="testOutput" class="test-output-content">{{ testOutput }}</pre>
+                <div v-if="testRunning" class="test-output-loading">
+                  <div class="loading-spinner-small"></div>
+                  <span>正在运行...</span>
+                </div>
+                <div v-else-if="testResult" class="test-result-container">
+                  <div class="test-result-header">
+                    <div class="test-result-status" :class="getResultStatusClass(testResult.result)">
+                      {{ getResultStatusText(testResult.result) }}
+                    </div>
+                    <div class="test-result-info">
+                      <span class="info-item">运行时间: {{ testResult.cpu_time || 0 }}ms</span>
+                      <span class="info-item">内存使用: {{ formatMemory(testResult.memory) }}KB</span>
+                    </div>
+                  </div>
+                  <div class="test-output-content-wrapper">
+                    <pre class="test-output-content">{{ testResult.output || '(无输出)' }}</pre>
+                  </div>
+                </div>
                 <div v-else class="test-output-placeholder">
                   运行结果将显示在这里...
                 </div>
@@ -220,19 +256,25 @@
 import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, highlightSpecialChars, drawSelection, dropCursor, rectangularSelection, crosshairCursor } from '@codemirror/view'
 import { EditorState, Compartment } from '@codemirror/state'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
-import { foldGutter, foldKeymap, syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language'
+import { foldGutter, foldKeymap, syntaxHighlighting, defaultHighlightStyle, bracketMatching } from '@codemirror/language'
+import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete'
 import { oneDark } from '@codemirror/theme-one-dark'
 import { cpp } from '@codemirror/lang-cpp'
 import { java } from '@codemirror/lang-java'
 import { python } from '@codemirror/lang-python'
 import { javascript } from '@codemirror/lang-javascript'
-import { getProblemDetail } from '@/api/problem'
+import { getProblemDetail, runTest, submitCode } from '@/api/problem'
+import { useAuth } from '@/composbles/useAuth'
 import MarkdownIt from 'markdown-it'
 import katex from 'katex'
 import 'katex/dist/katex.min.css'
 
 export default {
   name: 'ProblemDetail',
+  setup() {
+    const { userId, isLoggedIn } = useAuth()
+    return { userId, isLoggedIn }
+  },
   data() {
     return {
       problem: {
@@ -265,6 +307,13 @@ export default {
       showTestPanel: false, // 是否显示自测面板
       testInput: '', // 测试用例输入
       testOutput: '', // 运行结果输出
+      testResult: null, // 运行结果数据对象
+      testRunning: false, // 是否正在运行
+      testPanelHeight: 400, // 测试面板高度（像素）
+      isResizing: false, // 是否正在调整大小
+      saveCodeTimer: null, // 保存代码的防抖定时器
+      submissionStatus: null, // 提交状态: null, 'Judging', 'Accepted', 'Wrong Answer', etc.
+      submissionId: null, // 当前提交ID
       defaultCode: {
         cpp: ``,
         java: ``,
@@ -301,6 +350,8 @@ export default {
       }
     },
     '$route.params.id'() {
+      // 切换题目时，保存当前题目的代码到缓存
+      this.saveCodeToCache()
       this.disposeEditor()
       this.loadProblem()
       this.$nextTick(() => {
@@ -547,10 +598,13 @@ export default {
           crosshairCursor(),
           highlightActiveLine(),
           EditorView.lineWrapping, // 启用自动换行
+          bracketMatching(), // 括号匹配高亮
+          closeBrackets(), // 自动补全右括号
           keymap.of([
             ...defaultKeymap,
             ...historyKeymap,
-            ...foldKeymap
+            ...foldKeymap,
+            ...closeBracketsKeymap // 括号补全快捷键
           ]),
           syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
           this.fontSizeCompartment.of(EditorView.theme({
@@ -591,10 +645,31 @@ export default {
           this.languageCompartment.of(languageSupport)
         ]
         
-        // 创建编辑器状态
+        // 从缓存读取代码，如果没有缓存则使用默认代码
+        const cachedCode = this.getCachedCode()
+        const initialCode = cachedCode || this.defaultCode[this.selectedLanguage] || ''
+        
+        // 添加代码变化监听，自动保存到缓存
+        // 使用 EditorView.updateListener extension
+        const updateListener = EditorView.updateListener.of((update) => {
+          if (update.docChanged) {
+            // 使用防抖，避免频繁保存
+            if (this.saveCodeTimer) {
+              clearTimeout(this.saveCodeTimer)
+            }
+            this.saveCodeTimer = setTimeout(() => {
+              this.saveCodeToCache()
+            }, 500) // 500ms 防抖
+          }
+        })
+        
+        // 创建编辑器状态，将 updateListener 添加到扩展中
         const state = EditorState.create({
-          doc: this.defaultCode[this.selectedLanguage] || '',
-          extensions: basicExtensions
+          doc: initialCode,
+          extensions: [
+            ...basicExtensions,
+            updateListener
+          ]
         })
 
         // 创建编辑器视图
@@ -620,10 +695,19 @@ export default {
       }
     },
     disposeEditor() {
+      // 保存当前代码到缓存
+      this.saveCodeToCache()
+      
       // 清除防抖定时器
       if (this.resizeTimer) {
         clearTimeout(this.resizeTimer)
         this.resizeTimer = null
+      }
+      
+      // 清除保存代码的防抖定时器
+      if (this.saveCodeTimer) {
+        clearTimeout(this.saveCodeTimer)
+        this.saveCodeTimer = null
       }
 
       // 移除窗口大小监听
@@ -648,19 +732,24 @@ export default {
       }
 
       try {
+        // 保存当前语言的代码到缓存
+        this.saveCodeToCache()
+        
         const currentValue = this.editor.state.doc.toString()
         const newDefaultCode = this.defaultCode[this.selectedLanguage]
         
-        // 如果当前代码是默认代码，则切换语言时使用新语言的默认代码
-        if (this.isDefaultCode(currentValue)) {
-          this.editor.dispatch({
-            changes: {
-              from: 0,
-              to: this.editor.state.doc.length,
-              insert: newDefaultCode
-            }
-          })
-        }
+        // 从缓存读取新语言的代码，如果没有缓存则使用默认代码
+        const cachedCode = this.getCachedCode()
+        const codeToUse = cachedCode || (this.isDefaultCode(currentValue) ? newDefaultCode : currentValue)
+        
+        // 更新代码内容
+        this.editor.dispatch({
+          changes: {
+            from: 0,
+            to: this.editor.state.doc.length,
+            insert: codeToUse
+          }
+        })
         
         // 更新语言支持
         const languageSupport = this.getLanguageSupport(this.selectedLanguage)
@@ -739,6 +828,43 @@ export default {
         console.error('更新主题失败:', error)
       }
     },
+    // 获取缓存键（基于题目ID和语言）
+    getCacheKey() {
+      const problemId = this.problem?.id || this.$route.params.id || 'unknown'
+      return `code_editor_${problemId}_${this.selectedLanguage}`
+    },
+    // 从缓存读取代码
+    getCachedCode() {
+      try {
+        const key = this.getCacheKey()
+        const cached = localStorage.getItem(key)
+        if (cached) {
+          return cached
+        }
+      } catch (error) {
+        console.warn('读取代码缓存失败:', error)
+      }
+      return null
+    },
+    // 保存代码到缓存
+    saveCodeToCache() {
+      if (!this.editor) {
+        return
+      }
+      try {
+        const code = this.editor.state.doc.toString()
+        const key = this.getCacheKey()
+        // 如果代码是默认代码，则不保存（节省空间）
+        if (!this.isDefaultCode(code)) {
+          localStorage.setItem(key, code)
+        } else {
+          // 如果是默认代码，删除缓存
+          localStorage.removeItem(key)
+        }
+      } catch (error) {
+        console.warn('保存代码缓存失败:', error)
+      }
+    },
     isDefaultCode(code) {
       const currentDefault = this.defaultCode[this.selectedLanguage]
       return code.trim() === currentDefault.trim()
@@ -793,17 +919,45 @@ export default {
         return
       }
 
-      // TODO: 调用判题机运行代码
-      // 目前暂时显示提示信息
-      this.testOutput = '判题机功能待开发完成后完善\n\n当前测试用例：\n' + this.testInput
-      
-      // 模拟运行（实际应该调用后端判题接口）
-      console.log('运行自测:', {
-        problemId: this.problem.id,
-        language: this.selectedLanguage,
-        code: code,
-        input: this.testInput
-      })
+      if (!this.problem.id) {
+        this.$message?.warning('题目信息不完整')
+        return
+      }
+
+      this.testRunning = true
+      this.testOutput = ''
+      this.testResult = null
+
+      try {
+        const response = await runTest(this.problem.id, {
+          code: code,
+          language: this.selectedLanguage,
+          test_input: this.testInput
+        })
+
+        if (response.code === 'success' && response.data) {
+          // 存储运行结果数据
+          this.testResult = response.data
+        } else {
+          // 错误情况，显示错误信息
+          this.testResult = {
+            result: 5, // System Error
+            output: `运行失败: ${response.message || '未知错误'}`,
+            cpu_time: 0,
+            memory: 0
+          }
+        }
+      } catch (error) {
+        console.error('运行自测失败:', error)
+        this.testResult = {
+          result: 5, // System Error
+          output: `运行失败: ${error.message || '请稍后重试'}`,
+          cpu_time: 0,
+          memory: 0
+        }
+      } finally {
+        this.testRunning = false
+      }
     },
     async submitCode() {
       if (!this.editor) {
@@ -816,15 +970,105 @@ export default {
         return
       }
 
-      // TODO: 提交代码到后端
-      console.log('提交代码:', {
-        problemId: this.problem.id,
-        language: this.selectedLanguage,
-        code: code
-      })
+      try {
+        // 设置提交状态为Judging
+        this.submissionStatus = 'Judging'
+        this.submissionId = null
 
-      // 模拟提交
-      this.$message?.info('代码提交功能待后端开发完成后完善')
+        // 调用后端API提交代码
+        const response = await submitCode(this.problem.id, {
+          code: code,
+          language: this.selectedLanguage
+        })
+
+        if (response.code === 'success' && response.data) {
+          const data = response.data
+          this.submissionId = data.submission_id
+          
+          // 根据状态码设置状态文本
+          const statusCode = data.status
+          const statusMap = {
+            0: 'Accepted',
+            '-1': 'Wrong Answer',
+            1: 'Time Limit Exceeded',
+            2: 'Time Limit Exceeded',
+            3: 'Memory Limit Exceeded',
+            4: 'Runtime Error',
+            5: 'Compile Error',
+            6: 'System Error',
+            7: 'Judging'
+          }
+          
+          // 优先使用 status_text，如果没有则使用状态码映射
+          // 确保正确处理 -1 状态码（需要转换为字符串）
+          this.submissionStatus = data.status_text || statusMap[String(statusCode)] || 'Unknown'
+          
+          // 调试日志
+          console.log('提交结果:', {
+            status: statusCode,
+            status_text: data.status_text,
+            submissionStatus: this.submissionStatus
+          })
+          
+          // 显示成功消息
+          if (data.status === 0) {
+            this.$message?.success('提交成功！所有测试用例通过')
+          } else {
+            this.$message?.warning(`提交完成：${this.submissionStatus}`)
+          }
+        } else {
+          this.submissionStatus = 'System Error'
+          this.$message?.error(response.message || '提交失败')
+        }
+      } catch (error) {
+        console.error('提交代码失败:', error)
+        this.submissionStatus = 'System Error'
+        const errorMessage = error.response?.data?.message || error.message || '提交失败，请稍后重试'
+        this.$message?.error(errorMessage)
+      }
+    },
+    getSubmissionStatusClass() {
+      if (!this.submissionStatus) return ''
+      
+      const status = this.submissionStatus.toLowerCase()
+      if (status === 'judging') {
+        return 'status-judging'
+      } else if (status === 'accepted') {
+        return 'status-accepted'
+      } else if (status.includes('wrong answer')) {
+        return 'status-wrong-answer'
+      } else if (status.includes('time limit')) {
+        return 'status-time-limit'
+      } else if (status.includes('memory limit')) {
+        return 'status-memory-limit'
+      } else if (status.includes('runtime error')) {
+        return 'status-runtime-error'
+      } else if (status.includes('compile error')) {
+        return 'status-compile-error'
+      } else {
+        return 'status-system-error'
+      }
+    },
+    goToSubmissionDetail() {
+      if (this.submissionId) {
+        // 跳转到提交详情页面
+        this.$router.push({
+          name: 'SubmissionDetail',
+          params: { id: this.submissionId }
+        })
+      }
+    },
+    goToSubmissionHistory() {
+      // 跳转到当前用户在当前题目的提交记录页面
+      if (!this.isLoggedIn) {
+        this.$message?.warning('请先登录')
+        this.$router.push('/login')
+        return
+      }
+      this.$router.push({
+        name: 'ProblemSubmissionHistory',
+        params: { id: this.problem.id }
+      })
     },
     getDifficultyText(difficulty) {
       const map = {
@@ -841,6 +1085,63 @@ export default {
         3: 'hard'
       }
       return map[difficulty] || 'easy'
+    },
+    getResultStatusText(result) {
+      // 确保 result 是数字类型
+      const resultNum = Number(result)
+      const statusMap = {
+        0: 'Accepted',
+        '-1': 'Wrong Answer',
+        1: 'Time Limit Exceeded',
+        2: 'Time Limit Exceeded',
+        3: 'Memory Limit Exceeded',
+        4: 'Runtime Error',
+        5: 'System Error'
+      }
+      return statusMap[resultNum] || statusMap[String(resultNum)] || 'Unknown'
+    },
+    getResultStatusClass(result) {
+      // 确保 result 是数字类型
+      const resultNum = Number(result)
+      const classMap = {
+        0: 'status-accepted',
+        '-1': 'status-wrong-answer',
+        1: 'status-time-limit',
+        2: 'status-time-limit',
+        3: 'status-memory-limit',
+        4: 'status-runtime-error',
+        5: 'status-system-error'
+      }
+      return classMap[resultNum] || classMap[String(resultNum)] || 'status-unknown'
+    },
+    formatMemory(memoryBytes) {
+      if (!memoryBytes) return '0'
+      // 将字节转换为KB
+      return Math.round(memoryBytes / 1024)
+    },
+    startResize(e) {
+      this.isResizing = true
+      const startY = e.clientY
+      const startHeight = this.testPanelHeight
+      
+      const doResize = (moveEvent) => {
+        const deltaY = startY - moveEvent.clientY // 向上拖动是正数
+        const newHeight = Math.max(200, Math.min(800, startHeight + deltaY))
+        this.testPanelHeight = newHeight
+      }
+      
+      const stopResize = () => {
+        this.isResizing = false
+        document.removeEventListener('mousemove', doResize)
+        document.removeEventListener('mouseup', stopResize)
+        document.body.style.cursor = ''
+        document.body.style.userSelect = ''
+      }
+      
+      document.addEventListener('mousemove', doResize)
+      document.addEventListener('mouseup', stopResize)
+      document.body.style.cursor = 'row-resize'
+      document.body.style.userSelect = 'none'
     },
     getPassRate() {
       if (this.problem.submissions === 0) {
@@ -887,6 +1188,7 @@ export default {
   align-items: center;
   gap: 16px;
   margin-bottom: 16px;
+  flex-wrap: wrap;
 }
 
 .problem-title {
@@ -917,6 +1219,35 @@ export default {
 .difficulty-hard {
   background-color: #fff1f0;
   color: #ff4d4f;
+}
+
+.btn-submission-history {
+  padding: 6px 16px;
+  border: 1px solid #1890ff;
+  border-radius: 6px;
+  background-color: #ffffff;
+  color: #1890ff;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  outline: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.btn-submission-history:hover {
+  background-color: #e6f7ff;
+  border-color: #40a9ff;
+  color: #40a9ff;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.2);
+}
+
+.btn-submission-history:active {
+  transform: translateY(0);
 }
 
 .problem-meta {
@@ -1225,6 +1556,80 @@ export default {
   padding: 10px 16px;
   border-bottom: 1px solid #f0f0f0;
   background-color: #fafafa;
+  gap: 16px;
+}
+
+.submission-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  user-select: none;
+}
+
+.submission-status:hover {
+  opacity: 0.9;
+  transform: scale(1.02);
+}
+
+.status-spinner {
+  display: inline-block;
+  animation: spin 1s linear infinite;
+  font-size: 16px;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.status-judging {
+  background-color: #1890ff;
+  color: #ffffff;
+}
+
+.status-accepted {
+  background-color: #52c41a;
+  color: #ffffff;
+}
+
+.status-wrong-answer {
+  background-color: #ff4d4f;
+  color: #ffffff;
+}
+
+.status-time-limit {
+  background-color: #faad14;
+  color: #ffffff;
+}
+
+.status-memory-limit {
+  background-color: #fa8c16;
+  color: #ffffff;
+}
+
+.status-runtime-error {
+  background-color: #eb2f96;
+  color: #ffffff;
+}
+
+.status-compile-error {
+  background-color: #722ed1;
+  color: #ffffff;
+}
+
+.status-system-error {
+  background-color: #8c8c8c;
+  color: #ffffff;
 }
 
 .language-selector {
@@ -1423,10 +1828,28 @@ export default {
 .test-panel {
   border-top: 2px solid #e8e8e8;
   background-color: #ffffff;
-  max-height: 400px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  position: relative;
+  min-height: 200px;
+  max-height: 800px;
+}
+
+.test-panel-resizer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  cursor: row-resize;
+  background-color: transparent;
+  z-index: 10;
+  transition: background-color 0.2s;
+}
+
+.test-panel-resizer:hover {
+  background-color: #1890ff;
 }
 
 .test-panel-content {
@@ -1525,10 +1948,80 @@ export default {
   border: 1px solid #d9d9d9;
   border-radius: 6px;
   background-color: #fafafa;
-  padding: 12px;
+  padding: 0;
   overflow-y: auto;
   min-height: 150px;
-  max-height: 300px;
+  /* 移除 max-height，让运行结果区域能够随着测试面板的高度变化而自适应 */
+}
+
+.test-result-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.test-result-header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e8e8e8;
+  background-color: #ffffff;
+  flex-shrink: 0;
+}
+
+.test-result-status {
+  padding: 6px 16px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 14px;
+  color: #ffffff;
+}
+
+.test-result-status.status-accepted {
+  background-color: #52c41a;
+}
+
+.test-result-status.status-wrong-answer {
+  background-color: #ff4d4f;
+}
+
+.test-result-status.status-time-limit {
+  background-color: #faad14;
+}
+
+.test-result-status.status-memory-limit {
+  background-color: #fa8c16;
+}
+
+.test-result-status.status-runtime-error {
+  background-color: #eb2f96;
+}
+
+.test-result-status.status-system-error {
+  background-color: #722ed1;
+}
+
+.test-result-status.status-unknown {
+  background-color: #8c8c8c;
+}
+
+.test-result-info {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+  color: #666666;
+  align-items: center;
+}
+
+.test-result-info .info-item {
+  white-space: nowrap;
+}
+
+.test-output-content-wrapper {
+  flex: 1;
+  padding: 12px 16px;
+  overflow-y: auto;
 }
 
 .test-output-content {
@@ -1547,6 +2040,32 @@ export default {
   font-size: 14px;
   text-align: center;
   padding: 20px 0;
+}
+
+.test-output-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: #666666;
+  font-size: 14px;
+  gap: 12px;
+}
+
+.loading-spinner-small {
+  width: 24px;
+  height: 24px;
+  border: 3px solid #f0f0f0;
+  border-top-color: #1890ff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .btn-run-test {
