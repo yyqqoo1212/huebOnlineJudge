@@ -2,14 +2,7 @@
   <div id="app">
     <NavBar v-if="!isAdminRoute" />
     <router-view v-slot="{ Component, route }">
-      <transition 
-        v-if="!isAdminRoute" 
-        name="fade-slide" 
-        mode="out-in"
-      >
-        <component :is="Component" :key="route.path" />
-      </transition>
-      <component v-else :is="Component" :key="route.path" />
+      <component v-if="Component" :is="Component" :key="route.fullPath" />
     </router-view>
   </div>
 </template>

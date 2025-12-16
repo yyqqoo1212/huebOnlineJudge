@@ -92,7 +92,14 @@ export default {
         },
         { path: '/admin/courses', label: '课程管理', icon: '📖' },
         { path: '/admin/contests', label: '比赛管理', icon: '🏆' },
-        { path: '/admin/discussions', label: '讨论管理', icon: '💬' }
+        { 
+          path: '/admin/discussions', 
+          label: '讨论管理', 
+          icon: '💬',
+          children: [
+            { path: '/admin/discussions/manage', label: '讨论管理', icon: '📋' }
+          ]
+        }
       ]
     }
   },
@@ -123,6 +130,12 @@ export default {
       if (this.$route.path.startsWith('/admin/problems')) {
         if (!this.expandedMenus.includes('/admin/problems')) {
           this.expandedMenus.push('/admin/problems')
+        }
+      }
+      // 如果当前路由是讨论管理的子路由，确保展开状态保持
+      if (this.$route.path.startsWith('/admin/discussions')) {
+        if (!this.expandedMenus.includes('/admin/discussions')) {
+          this.expandedMenus.push('/admin/discussions')
         }
       }
     }

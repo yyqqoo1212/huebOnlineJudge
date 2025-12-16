@@ -9,6 +9,7 @@ import SubmissionList from '../views/submission/SubmissionList.vue'
 import SubmissionDetail from '../views/submission/Detail.vue'
 import ProblemSubmissionHistory from '../views/problem/SubmissionHistory.vue'
 import DiscussionList from '../views/disscussion/DiscussionList.vue'
+import DiscussionDetail from '../views/disscussion/Detail.vue'
 
 import Register from '../views/auth/Register.vue'
 import Login from '../views/auth/Login.vue'
@@ -93,6 +94,17 @@ const routes = [
     component: DiscussionList
   },
   {
+    path: '/discussions/new',
+    name: 'DiscussionCreate',
+    component: () => import('../views/disscussion/Create.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/discussions/:id',
+    name: 'DiscussionDetail',
+    component: DiscussionDetail
+  },
+  {
     path: '/admin',
     name: 'Admin',
     component: Admin,
@@ -158,7 +170,15 @@ const routes = [
       {
         path: 'discussions',
         name: 'DiscussionManagement',
-        component: DiscussionManagement
+        component: DiscussionManagement,
+        redirect: '/admin/discussions/manage',
+        children: [
+          {
+            path: 'manage',
+            name: 'DiscussionManage',
+            component: () => import('../views/admin/discussions/DiscussionManage.vue')
+          }
+        ]
       }
     ]
   }

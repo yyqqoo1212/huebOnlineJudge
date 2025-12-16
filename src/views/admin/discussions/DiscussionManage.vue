@@ -1,14 +1,14 @@
 <template>
-  <div class="user-management">
+  <div class="discussion-manage">
     <div class="page-header">
-      <h1>用户管理</h1>
-      <p class="page-subtitle">管理系统所有用户信息</p>
+      <h1>讨论管理</h1>
+      <p class="page-subtitle">管理系统所有讨论信息</p>
     </div>
     <div class="management-header">
       <input 
         v-model="searchQuery"
         type="text"
-        placeholder="搜索用户名、邮箱、学号..."
+        placeholder="搜索讨论标题、作者..."
         class="search-input"
         @input="handleSearch"
       />
@@ -33,11 +33,11 @@
     
     <div v-else-if="error" class="error-state">
       <p>{{ error }}</p>
-      <button class="btn-retry" @click="fetchUsers">重试</button>
+      <button class="btn-retry" @click="fetchDiscussions">重试</button>
     </div>
     
-    <div v-else class="user-table-container">
-      <table class="user-table">
+    <div v-else class="discussion-table-container">
+      <table class="discussion-table">
         <thead>
           <tr>
             <th v-if="batchDeleteMode" style="width: 50px; text-align: center;">
@@ -48,57 +48,56 @@
                 class="checkbox-select-all"
               />
             </th>
-            <th>用户ID</th>
-            <th>用户名</th>
-            <th>邮箱</th>
-            <th>学号</th>
-            <th>真实姓名</th>
-            <th>状态</th>
-            <th>权限</th>
+            <th>讨论ID</th>
+            <th>标题</th>
+            <th>作者</th>
+            <th>浏览量</th>
+            <th style="text-align: center; width: 100px;">置顶</th>
             <th style="text-align: center;">操作</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-if="users.length === 0">
-            <td :colspan="batchDeleteMode ? 9 : 8" class="empty-text">暂无用户数据</td>
+          <tr v-if="discussions.length === 0">
+            <td :colspan="batchDeleteMode ? 7 : 6" class="empty-text">暂无讨论数据</td>
           </tr>
-          <tr v-for="user in users" :key="user.id">
+          <tr v-for="discussion in discussions" :key="discussion.id">
             <td v-if="batchDeleteMode" style="text-align: center;">
               <input 
                 type="checkbox" 
-                :value="user.id"
-                v-model="selectedUsers"
+                :value="discussion.id"
+                v-model="selectedDiscussions"
                 class="checkbox-item"
               />
             </td>
-            <td>{{ user.id }}</td>
-            <td>{{ user.username }}</td>
-            <td>{{ user.email }}</td>
-            <td>{{ user.student_id || '-' }}</td>
-            <td>{{ user.real_name || '-' }}</td>
-            <td>
-              <span :class="['status-badge', `status-${user.status}`]">
-                {{ getStatusText(user.status) }}
-              </span>
-            </td>
-            <td>
-              <span :class="['permission-badge', `permission-${user.permission}`]">
-                {{ getPermissionText(user.permission) }}
-              </span>
+            <td>{{ discussion.id }}</td>
+            <td class="title-cell">{{ discussion.title }}</td>
+            <td>{{ discussion.author }}</td>
+            <td>{{ discussion.views || 0 }}</td>
+            <td class="pinned-cell" style="text-align: center;">
+              <label class="switch-label-inline">
+                <input 
+                  type="checkbox" 
+                  :checked="discussion.is_pinned || false"
+                  @change="togglePinned(discussion)"
+                  :disabled="pinningLoading && pinningTarget && pinningTarget.id === discussion.id"
+                  class="switch-input-inline"
+                />
+                <span class="switch-slider-inline"></span>
+              </label>
             </td>
             <td class="actions-cell">
               <button 
                 class="icon-btn icon-edit" 
-                title="编辑用户"
-                @click="openEditModal(user)"
+                title="编辑讨论"
+                @click="openEditModal(discussion)"
               >
                 ✏️
               </button>
               <button
                 class="icon-btn icon-delete"
-                title="删除用户"
-                :disabled="deleteLoading && deleteTarget && deleteTarget.id === user.id"
-                @click="openDeleteModal(user)"
+                title="删除讨论"
+                :disabled="deleteLoading && deleteTarget && deleteTarget.id === discussion.id"
+                @click="openDeleteModal(discussion)"
               >
                 🗑️
               </button>
@@ -108,17 +107,17 @@
       </table>
 
       <!-- 批量删除操作栏 -->
-      <div v-if="batchDeleteMode && selectedUsers.length > 0" class="batch-actions-bar">
-        <span class="batch-info">已选中 {{ selectedUsers.length }} 个用户</span>
+      <div v-if="batchDeleteMode && selectedDiscussions.length > 0" class="batch-actions-bar">
+        <span class="batch-info">已选中 {{ selectedDiscussions.length }} 个讨论</span>
         <button class="btn-batch-delete-confirm" @click="openBatchDeleteModal">
-          删除选中用户
+          删除选中讨论
         </button>
       </div>
 
       <!-- 翻页器 -->
       <div v-if="!loading && pagination.total_pages > 0" class="pagination-container">
         <div class="pagination-info">
-          <span>共 {{ pagination.total }} 个用户</span>
+          <span>共 {{ pagination.total }} 个讨论</span>
           <span class="page-info">第 {{ pagination.page }} / {{ pagination.total_pages }} 页</span>
         </div>
         <div class="pagination">
@@ -170,9 +169,9 @@
     <!-- 批量删除确认弹窗 -->
     <ConfirmDialog
       :visible="showBatchDeleteModal"
-      title="确认批量删除用户？"
-      message="删除后将移除选中用户的所有信息及相关数据，且无法恢复。"
-      :detail="`将删除 ${selectedUsers.length} 个用户：`"
+      title="确认批量删除讨论？"
+      message="删除后将移除选中讨论的所有信息及相关数据，且无法恢复。"
+      :detail="`将删除 ${selectedDiscussions.length} 个讨论：`"
       confirm-text="确认删除"
       cancel-text="再想想"
       :loading="batchDeleteLoading"
@@ -184,11 +183,11 @@
       <template #content>
         <div class="batch-delete-list">
           <div 
-            v-for="userId in selectedUsers" 
-            :key="userId"
+            v-for="discussionId in selectedDiscussions" 
+            :key="discussionId"
             class="batch-delete-item"
           >
-            {{ getUserById(userId)?.id }} - {{ getUserById(userId)?.username }}
+            {{ getDiscussionById(discussionId)?.id }} - {{ getDiscussionById(discussionId)?.title }}
           </div>
         </div>
       </template>
@@ -197,9 +196,9 @@
     <!-- 单个删除确认弹窗 -->
     <ConfirmDialog
       :visible="showDeleteModal"
-      title="确认删除用户？"
-      message="删除后将移除该用户的所有信息及相关数据，且无法恢复。"
-      :detail="deleteTarget ? `将删除：${deleteTarget.id} - ${deleteTarget.username}` : ''"
+      title="确认删除讨论？"
+      message="删除后将移除该讨论的所有信息及相关数据，且无法恢复。"
+      :detail="deleteTarget ? `将删除：${deleteTarget.id} - ${deleteTarget.title}` : ''"
       confirm-text="确认删除"
       cancel-text="再想想"
       :loading="deleteLoading"
@@ -209,7 +208,7 @@
       @update:visible="showDeleteModal = $event"
     />
 
-    <!-- 编辑用户弹窗 -->
+    <!-- 编辑讨论弹窗 -->
     <transition name="fade">
       <div
         v-if="showEditModal"
@@ -217,106 +216,38 @@
         @click.self="closeEditModal"
       >
         <div class="modal-card edit-modal-card">
-          <h3>编辑用户信息</h3>
+          <h3>编辑讨论信息</h3>
           <div class="edit-form">
-            <div class="form-row">
-              <div class="form-group">
-                <label>用户ID</label>
-                <input type="text" :value="editForm.id" disabled class="form-input" />
-              </div>
-              <div class="form-group">
-                <label>用户名 <span class="required">*</span></label>
-                <input 
-                  type="text" 
-                  v-model="editForm.username" 
-                  class="form-input"
-                  placeholder="请输入用户名"
-                />
-              </div>
+            <div class="form-group">
+              <label>讨论ID</label>
+              <input type="text" :value="editForm.id" disabled class="form-input" />
             </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label>邮箱 <span class="required">*</span></label>
-                <input 
-                  type="email" 
-                  v-model="editForm.email" 
-                  class="form-input"
-                  placeholder="请输入邮箱"
-                />
-              </div>
-              <div class="form-group">
-                <label>性别</label>
-                <select v-model="editForm.gender" class="form-input">
-                  <option value="M">男</option>
-                  <option value="F">女</option>
-                </select>
-              </div>
+            <div class="form-group">
+              <label>标题 <span class="required">*</span></label>
+              <input 
+                type="text" 
+                v-model="editForm.title" 
+                class="form-input"
+                placeholder="请输入讨论标题"
+                maxlength="200"
+              />
             </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label>学号</label>
-                <input 
-                  type="text" 
-                  v-model="editForm.student_id" 
-                  class="form-input"
-                  placeholder="请输入学号"
-                />
-              </div>
-              <div class="form-group">
-                <label>班级</label>
-                <input 
-                  type="text" 
-                  v-model="editForm.class_name" 
-                  class="form-input"
-                  placeholder="请输入班级"
-                />
-              </div>
+            <div class="form-group">
+              <label>分类 <span class="required">*</span></label>
+              <select v-model="editForm.type" class="form-input">
+                <option value="solution">题解</option>
+                <option value="chat">闲聊</option>
+                <option value="help">求解</option>
+                <option value="share">分享</option>
+              </select>
             </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label>真实姓名</label>
-                <input 
-                  type="text" 
-                  v-model="editForm.real_name" 
-                  class="form-input"
-                  placeholder="请输入真实姓名"
-                />
-              </div>
-              <div class="form-group">
-                <label>状态</label>
-                <select v-model="editForm.status" class="form-input">
-                  <option value="normal">正常</option>
-                  <option value="banned">封禁</option>
-                </select>
-              </div>
+            <div class="form-group">
+              <label>作者</label>
+              <input type="text" :value="editForm.author" disabled class="form-input" />
             </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label>权限</label>
-                <select v-model.number="editForm.permission" class="form-input">
-                  <option :value="0">普通用户</option>
-                  <option :value="1">管理员</option>
-                  <option :value="2">超级管理员</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label>密码</label>
-                <div class="password-reset-section">
-                  <input 
-                    type="password" 
-                    value="********" 
-                    disabled 
-                    class="form-input password-disabled"
-                  />
-                  <button 
-                    class="btn-reset-password"
-                    @click="openResetPasswordModal"
-                    :disabled="editLoading"
-                  >
-                    重置密码
-                  </button>
-                </div>
-              </div>
+            <div class="form-group">
+              <label>浏览量</label>
+              <input type="text" :value="editForm.views || 0" disabled class="form-input" />
             </div>
           </div>
           <div class="modal-actions">
@@ -338,78 +269,21 @@
         </div>
       </div>
     </transition>
-
-    <!-- 重置密码弹窗 -->
-    <transition name="fade">
-      <div
-        v-if="showResetPasswordModal"
-        class="modal-overlay"
-        @click.self="closeResetPasswordModal"
-      >
-        <div class="modal-card">
-          <h3>重置用户密码</h3>
-          <p>请输入新密码（至少6位）</p>
-          <div class="form-group">
-            <label>新密码 <span class="required">*</span></label>
-            <input 
-              type="password" 
-              v-model="resetPasswordForm.newPassword" 
-              class="form-input"
-              placeholder="请输入新密码"
-              @keyup.enter="confirmResetPassword"
-            />
-          </div>
-          <div class="form-group">
-            <label>确认密码 <span class="required">*</span></label>
-            <input 
-              type="password" 
-              v-model="resetPasswordForm.confirmPassword" 
-              class="form-input"
-              placeholder="请再次输入新密码"
-              @keyup.enter="confirmResetPassword"
-            />
-          </div>
-          <div class="modal-actions">
-            <button
-              class="modal-cancel"
-              @click="closeResetPasswordModal"
-              :disabled="resetPasswordLoading"
-            >
-              取消
-            </button>
-            <button
-              class="modal-confirm"
-              @click="confirmResetPassword"
-              :disabled="resetPasswordLoading"
-            >
-              {{ resetPasswordLoading ? '重置中...' : '确认重置' }}
-            </button>
-          </div>
-        </div>
-      </div>
-    </transition>
-
-    <!-- 反馈提示弹窗 -->
-    <transition name="fade">
-      <div v-if="feedbackVisible" class="center-feedback" :class="`center-feedback-${feedbackType}`">
-        {{ feedbackMessage }}
-      </div>
-    </transition>
   </div>
 </template>
 
 <script>
-import { getUserList, deleteUser, updateUser, resetUserPassword } from '@/api/user'
+import { getDiscussionList, deleteDiscussion, updateDiscussion, getDiscussionDetail } from '@/api/discussion'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
 export default {
-  name: 'UserManagement',
+  name: 'DiscussionManage',
   components: {
     ConfirmDialog
   },
   data() {
     return {
-      users: [],
+      discussions: [],
       loading: false,
       error: null,
       searchQuery: '',
@@ -423,45 +297,34 @@ export default {
         has_previous: false
       },
       batchDeleteMode: false,
-      selectedUsers: [],
+      selectedDiscussions: [],
       showBatchDeleteModal: false,
       batchDeleteLoading: false,
       showDeleteModal: false,
       deleteTarget: null,
       deleteLoading: false,
+      pinningLoading: false,
+      pinningTarget: null,
       showEditModal: false,
       editForm: {
         id: null,
-        username: '',
-        email: '',
-        gender: '',
-        student_id: '',
-        class_name: '',
-        real_name: '',
-        status: 'normal',
-        permission: 0
+        title: '',
+        type: 'chat',
+        author: '',
+        views: 0
       },
-      editLoading: false,
-      showResetPasswordModal: false,
-      resetPasswordForm: {
-        newPassword: '',
-        confirmPassword: ''
-      },
-      resetPasswordLoading: false,
-      feedbackVisible: false,
-      feedbackMessage: '',
-      feedbackType: 'success'
+      editLoading: false
     }
   },
   computed: {
     isAllSelected() {
-      return this.users.length > 0 && 
-             this.selectedUsers.length === this.users.length &&
-             this.users.every(u => this.selectedUsers.includes(u.id))
+      return this.discussions.length > 0 && 
+             this.selectedDiscussions.length === this.discussions.length &&
+             this.discussions.every(d => this.selectedDiscussions.includes(d.id))
     }
   },
   mounted() {
-    this.fetchUsers()
+    this.fetchDiscussions()
   },
   watch: {
     searchQuery() {
@@ -475,10 +338,10 @@ export default {
       }
       this.searchTimer = setTimeout(() => {
         this.pagination.page = 1
-        this.fetchUsers()
+        this.fetchDiscussions()
       }, 500)
     },
-    async fetchUsers(page = this.pagination.page) {
+    async fetchDiscussions(page = this.pagination.page) {
       this.loading = true
       this.error = null
       try {
@@ -487,26 +350,27 @@ export default {
           page_size: this.pagination.page_size
         }
         
-        // 添加搜索参数
+        // 添加搜索参数（后端可能需要支持搜索，这里先预留）
         if (this.searchQuery.trim()) {
-          params.search = this.searchQuery.trim()
+          // 如果后端支持搜索，可以添加 search 参数
+          // params.search = this.searchQuery.trim()
         }
         
-        const response = await getUserList(params)
+        const response = await getDiscussionList(params)
         if (response.code === 'success' && response.data) {
-          this.users = response.data.users || []
+          this.discussions = response.data.discussions || []
           this.pagination = {
             ...this.pagination,
             ...(response.data.pagination || {})
           }
         } else {
-          this.error = response.message || '获取用户列表失败'
-          this.users = []
+          this.error = response.message || '获取讨论列表失败'
+          this.discussions = []
         }
       } catch (err) {
-        console.error('获取用户列表失败:', err)
-        this.error = err.message || '获取用户列表失败，请稍后重试'
-        this.users = []
+        console.error('获取讨论列表失败:', err)
+        this.error = err.message || '获取讨论列表失败，请稍后重试'
+        this.discussions = []
       } finally {
         this.loading = false
       }
@@ -514,14 +378,13 @@ export default {
     changePage(page) {
       if (page === this.pagination.page || page === '...') return
       this.pagination.page = page
-      this.fetchUsers(page)
-      // 滚动到顶部
+      this.fetchDiscussions(page)
       window.scrollTo({ top: 0, behavior: 'smooth' })
     },
     handlePageSizeChange(pageSize) {
       this.pagination.page_size = pageSize
       this.pagination.page = 1
-      this.fetchUsers(1)
+      this.fetchDiscussions(1)
     },
     getPageNumbers() {
       const current = this.pagination.page
@@ -529,28 +392,23 @@ export default {
       const pages = []
       
       if (total <= 7) {
-        // 总页数少于等于7，显示所有页码
         for (let i = 1; i <= total; i++) {
           pages.push(i)
         }
       } else {
-        // 总页数大于7，显示部分页码和省略号
         if (current <= 3) {
-          // 当前页在前3页
           for (let i = 1; i <= 4; i++) {
             pages.push(i)
           }
           pages.push('...')
           pages.push(total)
         } else if (current >= total - 2) {
-          // 当前页在后3页
           pages.push(1)
           pages.push('...')
           for (let i = total - 3; i <= total; i++) {
             pages.push(i)
           }
         } else {
-          // 当前页在中间
           pages.push(1)
           pages.push('...')
           for (let i = current - 1; i <= current + 1; i++) {
@@ -566,26 +424,23 @@ export default {
     toggleBatchDeleteMode() {
       this.batchDeleteMode = !this.batchDeleteMode
       if (!this.batchDeleteMode) {
-        // 退出批量删除模式时清空选中
-        this.selectedUsers = []
+        this.selectedDiscussions = []
       }
     },
     toggleSelectAll(event) {
       if (event.target.checked) {
-        // 全选
-        this.selectedUsers = this.users.map(u => u.id)
+        this.selectedDiscussions = this.discussions.map(d => d.id)
       } else {
-        // 取消全选
-        this.selectedUsers = []
+        this.selectedDiscussions = []
       }
     },
-    getUserById(userId) {
-      return this.users.find(u => u.id === userId)
+    getDiscussionById(discussionId) {
+      return this.discussions.find(d => d.id === discussionId)
     },
     openBatchDeleteModal() {
-      if (this.selectedUsers.length === 0) {
+      if (this.selectedDiscussions.length === 0) {
         if (this.$message?.warning) {
-          this.$message.warning('请先选择要删除的用户')
+          this.$message.warning('请先选择要删除的讨论')
         }
         return
       }
@@ -596,43 +451,40 @@ export default {
       this.showBatchDeleteModal = false
     },
     async confirmBatchDelete() {
-      if (this.selectedUsers.length === 0 || this.batchDeleteLoading) return
+      if (this.selectedDiscussions.length === 0 || this.batchDeleteLoading) return
       
       this.batchDeleteLoading = true
       try {
-        // 依次删除选中的用户
-        const deletePromises = this.selectedUsers.map(userId => 
-          deleteUser(userId).catch(err => {
-            console.error(`删除用户 ${userId} 失败:`, err)
-            return { error: true, userId, message: err.message }
+        const deletePromises = this.selectedDiscussions.map(discussionId => 
+          deleteDiscussion(discussionId).catch(err => {
+            console.error(`删除讨论 ${discussionId} 失败:`, err)
+            return { error: true, discussionId, message: err.message }
           })
         )
         
         const results = await Promise.all(deletePromises)
         const errors = results.filter(r => r && r.error)
-        const successCount = this.selectedUsers.length - errors.length
+        const successCount = this.selectedDiscussions.length - errors.length
         
         if (successCount > 0) {
           if (this.$message?.success) {
-            this.$message.success(`成功删除 ${successCount} 个用户`)
+            this.$message.success(`成功删除 ${successCount} 个讨论`)
           }
         }
         
         if (errors.length > 0) {
           if (this.$message?.error) {
-            this.$message.error(`删除失败 ${errors.length} 个用户`)
+            this.$message.error(`删除失败 ${errors.length} 个讨论`)
           }
         }
         
-        // 清空选中并刷新列表
-        this.selectedUsers = []
+        this.selectedDiscussions = []
         this.batchDeleteMode = false
         this.showBatchDeleteModal = false
         
-        // 刷新当前页，如果当前页没有数据了，跳转到上一页
-        await this.fetchUsers(this.pagination.page)
-        if (this.users.length === 0 && this.pagination.page > 1) {
-          await this.fetchUsers(this.pagination.page - 1)
+        await this.fetchDiscussions(this.pagination.page)
+        if (this.discussions.length === 0 && this.pagination.page > 1) {
+          await this.fetchDiscussions(this.pagination.page - 1)
         }
       } catch (err) {
         console.error('批量删除失败:', err)
@@ -647,28 +499,11 @@ export default {
       // 搜索由 watch 监听处理
     },
     handleRefresh() {
-      // 刷新当前页
-      this.fetchUsers(this.pagination.page)
+      this.fetchDiscussions(this.pagination.page)
     },
-    getStatusText(status) {
-      const map = {
-        'normal': '正常',
-        'banned': '封禁'
-      }
-      return map[status] || status
-    },
-    getPermissionText(permission) {
-      const perm = Number(permission) || 0
-      const map = {
-        0: '普通用户',
-        1: '管理员',
-        2: '超级管理员'
-      }
-      return map[perm] || `权限${perm}`
-    },
-    openDeleteModal(user) {
+    openDeleteModal(discussion) {
       if (this.loading || this.deleteLoading) return
-      this.deleteTarget = user
+      this.deleteTarget = discussion
       this.showDeleteModal = true
     },
     closeDeleteModal() {
@@ -680,39 +515,96 @@ export default {
       if (!this.deleteTarget || this.deleteLoading) return
       this.deleteLoading = true
       try {
-        await deleteUser(this.deleteTarget.id)
+        await deleteDiscussion(this.deleteTarget.id)
         if (this.$message?.success) {
-          this.$message.success('删除用户成功')
+          this.$message.success('删除讨论成功')
         }
         const nextPage =
-          this.users.length === 1 && this.pagination.page > 1
+          this.discussions.length === 1 && this.pagination.page > 1
             ? this.pagination.page - 1
             : this.pagination.page
-        await this.fetchUsers(nextPage)
+        await this.fetchDiscussions(nextPage)
         this.showDeleteModal = false
         this.deleteTarget = null
       } catch (err) {
-        console.error('删除用户失败:', err)
+        console.error('删除讨论失败:', err)
         if (this.$message?.error) {
-          this.$message.error(err.message || '删除用户失败，请稍后重试')
+          this.$message.error(err.message || '删除讨论失败，请稍后重试')
         }
       } finally {
         this.deleteLoading = false
       }
     },
-    openEditModal(user) {
-      if (this.loading || this.editLoading) return
-      this.editForm = {
-        id: user.id,
-        username: user.username || '',
-        email: user.email || '',
-        gender: user.gender || '',
-        student_id: user.student_id || '',
-        class_name: user.class_name || '',
-        real_name: user.real_name || '',
-        status: user.status || 'normal',
-        permission: Number(user.permission) || 0
+    async togglePinned(discussion) {
+      if (this.pinningLoading) return
+      
+      const newPinnedState = !discussion.is_pinned
+      this.pinningLoading = true
+      this.pinningTarget = discussion
+      
+      try {
+        await updateDiscussion(discussion.id, {
+          is_pinned: newPinnedState
+        })
+        
+        // 更新本地数据
+        discussion.is_pinned = newPinnedState
+        
+        if (this.$message?.success) {
+          this.$message.success(newPinnedState ? '已置顶' : '已取消置顶')
+        }
+        
+        // 如果当前页有置顶状态变化，可能需要重新排序，刷新列表
+        await this.fetchDiscussions(this.pagination.page)
+      } catch (err) {
+        console.error('切换置顶状态失败:', err)
+        // 恢复原状态
+        discussion.is_pinned = !newPinnedState
+        if (this.$message?.error) {
+          this.$message.error(err.message || '切换置顶状态失败，请稍后重试')
+        }
+      } finally {
+        this.pinningLoading = false
+        this.pinningTarget = null
       }
+    },
+    async openEditModal(discussion) {
+      if (this.loading || this.editLoading) return
+      
+      // 如果需要编辑内容，需要先获取详情
+      try {
+        const response = await getDiscussionDetail(discussion.id)
+        if (response.code === 'success' && response.data) {
+          const detail = response.data
+          this.editForm = {
+            id: detail.id,
+            title: detail.title || '',
+            type: detail.type || 'chat',
+            author: detail.author || '',
+            views: detail.views || 0
+          }
+        } else {
+          // 如果获取详情失败，使用列表中的数据
+          this.editForm = {
+            id: discussion.id,
+            title: discussion.title || '',
+            type: discussion.type || 'chat',
+            author: discussion.author || '',
+            views: discussion.views || 0
+          }
+        }
+      } catch (err) {
+        console.error('获取讨论详情失败:', err)
+        // 使用列表中的数据
+        this.editForm = {
+          id: discussion.id,
+          title: discussion.title || '',
+          type: discussion.type || 'chat',
+          author: discussion.author || '',
+          views: discussion.views || 0
+        }
+      }
+      
       this.showEditModal = true
     },
     closeEditModal() {
@@ -720,116 +612,46 @@ export default {
       this.showEditModal = false
       this.editForm = {
         id: null,
-        username: '',
-        email: '',
-        gender: '',
-        student_id: '',
-        class_name: '',
-        real_name: '',
-        status: 'normal',
-        permission: 0
+        title: '',
+        type: 'chat',
+        author: '',
+        views: 0
       }
     },
     async confirmEdit() {
       if (!this.editForm.id || this.editLoading) return
       
-      // 验证必填字段
-      if (!this.editForm.username || !this.editForm.email) {
-        this.showFeedback('error', '用户名和邮箱不能为空')
+      if (!this.editForm.title || !this.editForm.type) {
+        if (this.$message?.warning) {
+          this.$message.warning('标题和分类不能为空')
+        }
         return
       }
       
       this.editLoading = true
       try {
-        await updateUser(this.editForm.id, {
-          username: this.editForm.username,
-          email: this.editForm.email,
-          gender: this.editForm.gender,
-          studentId: this.editForm.student_id,
-          className: this.editForm.class_name,
-          realName: this.editForm.real_name,
-          status: this.editForm.status,
-          permission: this.editForm.permission
+        await updateDiscussion(this.editForm.id, {
+          title: this.editForm.title,
+          type: this.editForm.type
         })
         
-        // 显示成功反馈（绿色弹窗）
-        this.showFeedback('success', '更新用户信息成功')
+        if (this.$message?.success) {
+          this.$message.success('更新讨论信息成功')
+        }
         
-        // 刷新当前页
-        await this.fetchUsers(this.pagination.page)
+        await this.fetchDiscussions(this.pagination.page)
         
-        // 延迟关闭弹窗，确保用户能看到反馈消息
         setTimeout(() => {
           this.closeEditModal()
         }, 500)
       } catch (err) {
-        console.error('更新用户信息失败:', err)
-        // 显示失败反馈（红色弹窗）
-        this.showFeedback('error', err.message || '更新用户信息失败，请稍后重试')
+        console.error('更新讨论信息失败:', err)
+        if (this.$message?.error) {
+          this.$message.error(err.message || '更新讨论信息失败，请稍后重试')
+        }
       } finally {
         this.editLoading = false
       }
-    },
-    openResetPasswordModal() {
-      this.resetPasswordForm = {
-        newPassword: '',
-        confirmPassword: ''
-      }
-      this.showResetPasswordModal = true
-    },
-    closeResetPasswordModal() {
-      if (this.resetPasswordLoading) return
-      this.showResetPasswordModal = false
-      this.resetPasswordForm = {
-        newPassword: '',
-        confirmPassword: ''
-      }
-    },
-    async confirmResetPassword() {
-      if (!this.editForm.id || this.resetPasswordLoading) return
-      
-      // 验证密码
-      if (!this.resetPasswordForm.newPassword) {
-        this.showFeedback('error', '请输入新密码')
-        return
-      }
-      
-      if (this.resetPasswordForm.newPassword.length < 6) {
-        this.showFeedback('error', '密码长度至少6位')
-        return
-      }
-      
-      if (this.resetPasswordForm.newPassword !== this.resetPasswordForm.confirmPassword) {
-        this.showFeedback('error', '两次输入的密码不一致')
-        return
-      }
-      
-      this.resetPasswordLoading = true
-      try {
-        await resetUserPassword(this.editForm.id, this.resetPasswordForm.newPassword)
-        
-        // 显示成功反馈（绿色弹窗）
-        this.showFeedback('success', '密码重置成功')
-        
-        // 延迟关闭弹窗，确保用户能看到反馈消息
-        setTimeout(() => {
-          this.closeResetPasswordModal()
-        }, 500)
-      } catch (err) {
-        console.error('重置密码失败:', err)
-        // 显示失败反馈（红色弹窗）
-        this.showFeedback('error', err.message || '重置密码失败，请稍后重试')
-      } finally {
-        this.resetPasswordLoading = false
-      }
-    },
-    showFeedback(type, message) {
-      this.feedbackType = type
-      this.feedbackMessage = message
-      this.feedbackVisible = true
-      setTimeout(() => {
-        this.feedbackVisible = false
-      }, 2000)
     }
   },
   beforeUnmount() {
@@ -841,7 +663,7 @@ export default {
 </script>
 
 <style scoped>
-.user-management {
+.discussion-manage {
   min-height: 400px;
 }
 
@@ -967,21 +789,21 @@ export default {
   color: #ff4d4f;
 }
 
-.user-table-container {
+.discussion-table-container {
   overflow-x: auto;
 }
 
-.user-table {
+.discussion-table {
   width: 100%;
   border-collapse: collapse;
   background-color: #ffffff;
 }
 
-.user-table thead {
+.discussion-table thead {
   background-color: #fafafa;
 }
 
-.user-table th {
+.discussion-table th {
   padding: 12px 16px;
   text-align: left;
   font-weight: 600;
@@ -1032,55 +854,22 @@ export default {
   border-color: #ff7875;
 }
 
-.user-table td {
+.discussion-table td {
   padding: 12px 16px;
   font-size: 14px;
   color: #666666;
   border-bottom: 1px solid #f0f0f0;
 }
 
-.user-table tbody tr:hover {
+.discussion-table tbody tr:hover {
   background-color: #f8f9fa;
 }
 
-.status-badge,
-.permission-badge {
-  display: inline-block;
-  padding: 4px 12px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.status-normal {
-  background-color: #f6ffed;
-  color: #52c41a;
-}
-
-.status-banned {
-  background-color: #fff1f0;
-  color: #ff4d4f;
-}
-
-.permission-0 {
-  background-color: #f0f0f0;
-  color: #666666;
-}
-
-.permission-1 {
-  background-color: #e6f7ff;
-  color: #1890ff;
-}
-
-.permission-2 {
-  background-color: #fff7e6;
-  color: #fa8c16;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 60px 20px;
-  color: #999999;
+.title-cell {
+  max-width: 400px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .empty-text {
@@ -1272,35 +1061,8 @@ export default {
   border-bottom: none;
 }
 
-.center-feedback {
-  position: fixed;
-  top: 20%;
-  left: 50%;
-  transform: translateX(-50%);
-  min-width: 220px;
-  padding: 12px 18px;
-  border-radius: 8px;
-  text-align: center;
-  font-size: 14px;
-  font-weight: 500;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-  z-index: 2000;
-}
-
-.center-feedback-success {
-  background-color: #f6ffed;
-  border: 1px solid #b7eb8f;
-  color: #389e0d;
-}
-
-.center-feedback-error {
-  background-color: #fff2f0;
-  border: 1px solid #ffccc7;
-  color: #cf1322;
-}
-
 .edit-modal-card {
-  width: min(800px, 90vw);
+  width: min(600px, 90vw);
   max-height: 90vh;
   overflow-y: auto;
 }
@@ -1315,15 +1077,8 @@ export default {
   margin: 0 0 20px 0;
 }
 
-.form-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 12px;
-}
-
 .form-group {
-  margin-bottom: 0;
+  margin-bottom: 16px;
 }
 
 .form-group label {
@@ -1361,35 +1116,179 @@ export default {
   color: #999999;
 }
 
-.password-reset-section {
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
   display: flex;
-  gap: 8px;
   align-items: center;
+  justify-content: center;
+  z-index: 1000;
 }
 
-.password-disabled {
-  flex: 1;
+.modal-card {
+  background-color: #ffffff;
+  border-radius: 8px;
+  padding: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
-.btn-reset-password {
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.modal-cancel,
+.modal-confirm {
   padding: 8px 16px;
-  border: 1px solid #1890ff;
   border-radius: 4px;
-  background-color: #e6f7ff;
-  color: #1890ff;
-  font-size: 13px;
+  font-size: 14px;
   cursor: pointer;
   transition: all 0.2s;
-  white-space: nowrap;
+  border: 1px solid;
+  outline: none;
 }
 
-.btn-reset-password:hover:not(:disabled) {
-  background-color: #bae7ff;
+.modal-cancel {
+  border-color: #d9d9d9;
+  background-color: #ffffff;
+  color: #333333;
 }
 
-.btn-reset-password:disabled {
+.modal-cancel:hover:not(:disabled) {
+  border-color: #1890ff;
+  color: #1890ff;
+}
+
+.modal-confirm {
+  border-color: #1890ff;
+  background-color: #1890ff;
+  color: #ffffff;
+}
+
+.modal-confirm:hover:not(:disabled) {
+  background-color: #40a9ff;
+  border-color: #40a9ff;
+}
+
+.modal-cancel:disabled,
+.modal-confirm:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.switch-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.switch-input {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  appearance: none;
+  background-color: #d9d9d9;
+  border-radius: 12px;
+  outline: none;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.switch-input:checked {
+  background-color: #1890ff;
+}
+
+.switch-slider {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  background-color: #ffffff;
+  border-radius: 50%;
+  transition: transform 0.3s ease;
+  pointer-events: none;
+}
+
+.switch-input:checked + .switch-slider {
+  transform: translateX(20px);
+}
+
+.switch-text {
+  font-size: 14px;
+  color: #333333;
+  user-select: none;
+}
+
+.pinned-cell {
+  vertical-align: middle;
+}
+
+.switch-label-inline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+}
+
+.switch-input-inline {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  appearance: none;
+  background-color: #d9d9d9;
+  border-radius: 12px;
+  outline: none;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  margin: 0;
+}
+
+.switch-input-inline:checked {
+  background-color: #1890ff;
+}
+
+.switch-input-inline:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.switch-slider-inline {
+  position: absolute;
+  top: 50%;
+  left: 2px;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  background-color: #ffffff;
+  border-radius: 50%;
+  transition: transform 0.3s ease;
+  pointer-events: none;
+}
+
+.switch-input-inline:checked + .switch-slider-inline {
+  transform: translateY(-50%) translateX(20px);
 }
 
 @media (max-width: 768px) {
@@ -1412,18 +1311,8 @@ export default {
   }
 
   .edit-modal-card {
-    width: min(95vw, 600px);
-  }
-
-  .form-row {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
-
-  .form-group {
-    margin-bottom: 12px;
+    width: min(95vw, 500px);
   }
 }
 </style>
-
 

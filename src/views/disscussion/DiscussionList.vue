@@ -2,8 +2,9 @@
   <div class="discussion-list">
     <div class="discussion-list-container">
       <div class="page-header">
-        <h1>讨论区</h1>
-        <p class="subtitle">分享知识，交流经验</p>
+        <button class="create-btn" @click="goToCreate">
+          发布讨论
+        </button>
       </div>
 
       <div class="filter-bar">
@@ -20,13 +21,17 @@
         </div>
       </div>
 
-      <div class="discussion-table">
+      <div v-if="loading" class="loading-state">
+        <p>加载中...</p>
+      </div>
+      <div v-else class="discussion-table">
         <div class="table-header">
           <div class="col-title">标题</div>
           <div class="col-type">类型</div>
           <div class="col-author">发布者</div>
           <div class="col-comments">评论数</div>
           <div class="col-likes">点赞数</div>
+          <div class="col-views">浏览量</div>
           <div class="col-time">发布时间</div>
         </div>
 
@@ -38,6 +43,7 @@
             @click="viewDiscussion(discussion.id)"
           >
             <div class="col-title">
+              <span v-if="discussion.is_pinned" class="pinned-badge" title="置顶">📌</span>
               <span class="title-text">{{ discussion.title }}</span>
             </div>
             <div class="col-type">
@@ -57,6 +63,10 @@
               <span class="icon">👍</span>
               <span class="count">{{ discussion.likes }}</span>
             </div>
+            <div class="col-views">
+              <span class="icon">👁</span>
+              <span class="count">{{ discussion.views || 0 }}</span>
+            </div>
             <div class="col-time">{{ formatDateTime(discussion.publishTime) }}</div>
           </div>
         </div>
@@ -74,6 +84,7 @@ export default {
   name: 'DiscussionList',
   data() {
     return {
+      loading: false,
       selectedType: null,
       typeOptions: [
         { value: 'solution', label: '题解' },
@@ -81,143 +92,7 @@ export default {
         { value: 'help', label: '求解' },
         { value: 'share', label: '分享' }
       ],
-      discussions: [
-        {
-          id: 'D001',
-          title: '两数之和的三种解法详解',
-          type: 'solution',
-          author: '算法大师',
-          comments: 24,
-          likes: 156,
-          publishTime: '2024-03-20T10:30:00'
-        },
-        {
-          id: 'D002',
-          title: '今天刷题刷到怀疑人生',
-          type: 'chat',
-          author: '代码狂人',
-          comments: 45,
-          likes: 89,
-          publishTime: '2024-03-20T09:15:00'
-        },
-        {
-          id: 'D003',
-          title: '动态规划问题求解，求大佬帮助',
-          type: 'help',
-          author: '编程新星',
-          comments: 18,
-          likes: 12,
-          publishTime: '2024-03-20T08:45:00'
-        },
-        {
-          id: 'D004',
-          title: '分享一个超好用的算法模板',
-          type: 'share',
-          author: '数据结构专家',
-          comments: 32,
-          likes: 234,
-          publishTime: '2024-03-19T16:20:00'
-        },
-        {
-          id: 'D005',
-          title: '最长回文子串的Manacher算法详解',
-          type: 'solution',
-          author: '算法大师',
-          comments: 28,
-          likes: 178,
-          publishTime: '2024-03-19T14:30:00'
-        },
-        {
-          id: 'D006',
-          title: '有没有一起刷LeetCode的小伙伴？',
-          type: 'chat',
-          author: '代码练习者',
-          comments: 67,
-          likes: 145,
-          publishTime: '2024-03-19T12:00:00'
-        },
-        {
-          id: 'D007',
-          title: '图论算法入门教程分享',
-          type: 'share',
-          author: '数据结构专家',
-          comments: 41,
-          likes: 267,
-          publishTime: '2024-03-18T18:15:00'
-        },
-        {
-          id: 'D008',
-          title: '这个递归问题怎么优化？',
-          type: 'help',
-          author: '编程入门者',
-          comments: 15,
-          likes: 8,
-          publishTime: '2024-03-18T15:30:00'
-        },
-        {
-          id: 'D009',
-          title: '二分查找的边界问题详解',
-          type: 'solution',
-          author: '代码狂人',
-          comments: 22,
-          likes: 134,
-          publishTime: '2024-03-18T13:20:00'
-        },
-        {
-          id: 'D010',
-          title: '刷题打卡，今天完成了10道题！',
-          type: 'chat',
-          author: '算法爱好者',
-          comments: 38,
-          likes: 98,
-          publishTime: '2024-03-17T20:45:00'
-        },
-        {
-          id: 'D011',
-          title: '分享一个超实用的调试技巧',
-          type: 'share',
-          author: '编程达人',
-          comments: 29,
-          likes: 189,
-          publishTime: '2024-03-17T17:10:00'
-        },
-        {
-          id: 'D012',
-          title: '滑动窗口问题求解思路',
-          type: 'solution',
-          author: '算法新手',
-          comments: 19,
-          likes: 112,
-          publishTime: '2024-03-17T14:25:00'
-        },
-        {
-          id: 'D013',
-          title: '有没有好的刷题计划推荐？',
-          type: 'help',
-          author: '学习中的小白',
-          comments: 52,
-          likes: 76,
-          publishTime: '2024-03-16T19:30:00'
-        },
-        {
-          id: 'D014',
-          title: '今天又是被算法虐的一天',
-          type: 'chat',
-          author: '新手小白',
-          comments: 43,
-          likes: 67,
-          publishTime: '2024-03-16T16:15:00'
-        },
-        {
-          id: 'D015',
-          title: '分享一个超棒的在线调试工具',
-          type: 'share',
-          author: '代码猎人',
-          comments: 35,
-          likes: 201,
-          publishTime: '2024-03-16T11:20:00'
-        }
-      ]
+      discussions: []
     }
   },
   computed: {
@@ -228,7 +103,62 @@ export default {
       return this.discussions
     }
   },
+  created() {
+    console.log('DiscussionList created')
+    this.fetchDiscussions()
+  },
+  mounted() {
+    console.log('DiscussionList mounted')
+  },
+  beforeRouteEnter(to, from, next) {
+    console.log('DiscussionList beforeRouteEnter', { to: to.name, from: from.name })
+    next()
+  },
+  beforeRouteUpdate(to, from, next) {
+    console.log('DiscussionList beforeRouteUpdate', { to: to.name, from: from.name })
+    // 当路由更新时（比如从详情页返回），重新加载数据
+    this.fetchDiscussions()
+    next()
+  },
+  activated() {
+    console.log('DiscussionList activated')
+    // 如果使用了 keep-alive，组件激活时重新加载数据
+    this.fetchDiscussions()
+  },
+  watch: {
+    '$route': {
+      handler(to, from) {
+        console.log('DiscussionList route watch', { to: to.name, from: from?.name })
+        // 监听路由变化，确保从其他页面返回时重新加载数据
+        if (to.name === 'DiscussionList') {
+          // 无论从哪里来，只要进入 DiscussionList 就重新加载数据
+          this.fetchDiscussions()
+        }
+      },
+      immediate: true
+    }
+  },
   methods: {
+    async fetchDiscussions() {
+      this.loading = true
+      try {
+        const { getDiscussionList } = await import('@/api/discussion')
+        const response = await getDiscussionList()
+
+        if (response.code === 'success' && response.data) {
+          this.discussions = response.data.discussions || []
+        } else {
+          this.discussions = []
+          this.$message?.error(response.message || '获取讨论列表失败')
+        }
+      } catch (error) {
+        console.error('获取讨论列表失败:', error)
+        this.discussions = []
+        this.$message?.error(error.message || '获取讨论列表失败，请稍后重试')
+      } finally {
+        this.loading = false
+      }
+    },
     toggleType(type) {
       // 如果点击的是已选中的类型，则取消筛选
       if (this.selectedType === type) {
@@ -238,8 +168,11 @@ export default {
       }
     },
     viewDiscussion(id) {
-      // 后续实现：查看具体讨论内容
-      console.log('查看讨论:', id)
+      this.$router.push({ name: 'DiscussionDetail', params: { id } })
+    },
+    goToCreate() {
+      // 使用 path 跳转，避免命名路由可能未更新导致的匹配问题
+      this.$router.push('/discussions/new')
     },
     getTypeText(type) {
       const map = {
@@ -277,6 +210,9 @@ export default {
 
 .page-header {
   margin-bottom: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .page-header h1 {
@@ -288,6 +224,31 @@ export default {
 .subtitle {
   font-size: 16px;
   color: #666666;
+}
+
+.create-btn {
+  padding: 8px 20px;
+  border-radius: 6px;
+  border: none;
+  background-color: #1890ff;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(24, 144, 255, 0.4);
+  transition: all 0.2s ease;
+}
+
+.create-btn:hover {
+  background-color: #40a9ff;
+  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.5);
+  transform: translateY(-1px);
+}
+
+.create-btn:active {
+  background-color: #096dd9;
+  box-shadow: 0 2px 6px rgba(9, 109, 217, 0.5);
+  transform: translateY(0);
 }
 
 .filter-bar {
@@ -348,7 +309,7 @@ export default {
 
 .table-header {
   display: grid;
-  grid-template-columns: 2fr 100px 120px 100px 100px 180px;
+  grid-template-columns: 2fr 100px 120px 100px 100px 100px 180px;
   gap: 20px;
   padding: 16px 24px;
   background-color: #fafafa;
@@ -360,7 +321,7 @@ export default {
 
 .table-row {
   display: grid;
-  grid-template-columns: 2fr 100px 120px 100px 100px 180px;
+  grid-template-columns: 2fr 100px 120px 100px 100px 100px 180px;
   gap: 20px;
   padding: 20px 24px;
   border-bottom: 1px solid #f0f0f0;
@@ -381,6 +342,23 @@ export default {
 .col-title {
   display: flex;
   align-items: center;
+}
+
+.pinned-badge {
+  display: inline-block;
+  margin-right: 6px;
+  font-size: 14px;
+  vertical-align: middle;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
 }
 
 .title-text {
@@ -442,7 +420,8 @@ export default {
 }
 
 .col-comments,
-.col-likes {
+.col-likes,
+.col-views {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -463,6 +442,13 @@ export default {
   align-items: center;
   color: #666666;
   font-size: 14px;
+}
+
+.loading-state {
+  padding: 60px 20px;
+  text-align: center;
+  color: #666666;
+  font-size: 16px;
 }
 
 .empty-state {
