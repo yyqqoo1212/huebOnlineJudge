@@ -4,6 +4,12 @@ import ProblemList from '../views/problem/ProblemList.vue'
 import ProblemDetail from '../views/problem/Detail.vue'
 import CourseList from '../views/course/CourseList.vue'
 import ContestList from '../views/contest/ContestList.vue'
+import ContestDetail from '../views/contest/Detail.vue'
+import ContestDescription from '../views/contest/Description.vue'
+import ContestProblems from '../views/contest/Problems.vue'
+import ContestSubmissions from '../views/contest/Submissions.vue'
+import ContestRanking from '../views/contest/Ranking.vue'
+import ContestAnnouncements from '../views/contest/Announcements.vue'
 import RankingList from '../views/rank/RankingList.vue'
 import SubmissionList from '../views/submission/SubmissionList.vue'
 import SubmissionDetail from '../views/submission/Detail.vue'
@@ -71,6 +77,39 @@ const routes = [
     path: '/contests',
     name: 'ContestList',
     component: ContestList
+  },
+  {
+    path: '/contests/:id',
+    name: 'ContestDetail',
+    component: ContestDetail,
+    redirect: { name: 'ContestDescription' },
+    children: [
+      {
+        path: 'description',
+        name: 'ContestDescription',
+        component: ContestDescription
+      },
+      {
+        path: 'problems',
+        name: 'ContestProblems',
+        component: ContestProblems
+      },
+      {
+        path: 'submissions',
+        name: 'ContestSubmissions',
+        component: ContestSubmissions
+      },
+      {
+        path: 'ranking',
+        name: 'ContestRanking',
+        component: ContestRanking
+      },
+      {
+        path: 'announcements',
+        name: 'ContestAnnouncements',
+        component: ContestAnnouncements
+      }
+    ]
   },
   {
     path: '/ranking',
@@ -165,7 +204,25 @@ const routes = [
       {
         path: 'contests',
         name: 'ContestManagement',
-        component: ContestManagement
+        component: ContestManagement,
+        redirect: '/admin/contests/manage',
+        children: [
+          {
+            path: 'manage',
+            name: 'ContestManage',
+            component: () => import('../views/admin/contests/ContestManage.vue')
+          },
+          {
+            path: 'create',
+            name: 'ContestCreate',
+            component: () => import('../views/admin/contests/ContestCreate.vue')
+          },
+          {
+            path: 'edit/:id',
+            name: 'ContestEdit',
+            component: () => import('../views/admin/contests/ContestCreate.vue')
+          }
+        ]
       },
       {
         path: 'discussions',

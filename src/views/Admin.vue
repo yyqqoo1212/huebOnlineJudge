@@ -91,7 +91,15 @@ export default {
           ]
         },
         { path: '/admin/courses', label: '课程管理', icon: '📖' },
-        { path: '/admin/contests', label: '比赛管理', icon: '🏆' },
+        { 
+          path: '/admin/contests', 
+          label: '比赛管理', 
+          icon: '🏆',
+          children: [
+            { path: '/admin/contests/manage', label: '比赛管理', icon: '📋' },
+            { path: '/admin/contests/create', label: '创建比赛', icon: '➕' }
+          ]
+        },
         { 
           path: '/admin/discussions', 
           label: '讨论管理', 
@@ -136,6 +144,12 @@ export default {
       if (this.$route.path.startsWith('/admin/discussions')) {
         if (!this.expandedMenus.includes('/admin/discussions')) {
           this.expandedMenus.push('/admin/discussions')
+        }
+      }
+      // 如果当前路由是比赛管理的子路由，确保展开状态保持
+      if (this.$route.path.startsWith('/admin/contests')) {
+        if (!this.expandedMenus.includes('/admin/contests')) {
+          this.expandedMenus.push('/admin/contests')
         }
       }
     }

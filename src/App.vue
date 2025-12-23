@@ -1,8 +1,8 @@
 <template>
   <div id="app">
     <NavBar v-if="!isAdminRoute" />
-    <router-view v-slot="{ Component, route }">
-      <component v-if="Component" :is="Component" :key="route.fullPath" />
+    <router-view v-slot="{ Component }">
+      <component v-if="Component" :is="Component" />
     </router-view>
   </div>
 </template>

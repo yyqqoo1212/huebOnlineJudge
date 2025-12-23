@@ -7,8 +7,9 @@
           <input 
             type="text" 
             v-model="searchQuery"
-            placeholder="搜索比赛号..." 
+            placeholder="搜索比赛号或名称..." 
             class="search-input"
+            @input="handleSearchInput"
           />
           <span class="search-icon">🔍</span>
         </div>
@@ -67,6 +68,7 @@
             v-for="contest in filteredContests" 
             :key="contest.id"
             class="table-row"
+            @click="goToContest(contest.id)"
           >
             <div class="col-image">
               <img :src="contest.image" :alt="contest.name" class="contest-image" />
@@ -109,11 +111,64 @@
           <p class="empty-hint">请尝试调整搜索条件</p>
         </div>
       </div>
+
+      <!-- 翻页器（模仿题库页面） -->
+      <div v-if="!loading && pagination.total_pages > 0" class="pagination-container">
+        <div class="pagination-info">
+          <span>共 {{ pagination.total }} 场比赛</span>
+          <span class="page-info">第 {{ pagination.page }} / {{ pagination.total_pages }} 页</span>
+        </div>
+        <div class="pagination">
+          <button 
+            class="pagination-btn"
+            :disabled="!pagination.has_previous || loading"
+            @click="handlePageChange(pagination.page - 1)"
+          >
+            上一页
+          </button>
+          
+          <div class="pagination-pages">
+            <button
+              v-for="page in getPageNumbers()"
+              :key="page"
+              :class="['pagination-page-btn', { active: page === pagination.page, ellipsis: page === '...' }]"
+              :disabled="page === '...' || loading"
+              @click="page !== '...' && handlePageChange(page)"
+            >
+              {{ page }}
+            </button>
+          </div>
+          
+          <button 
+            class="pagination-btn"
+            :disabled="!pagination.has_next || loading"
+            @click="handlePageChange(pagination.page + 1)"
+          >
+            下一页
+          </button>
+        </div>
+        <div class="page-size-selector">
+          <span>每页显示：</span>
+          <select 
+            :value="pagination.page_size" 
+            @change="handlePageSizeChange(Number($event.target.value))"
+            :disabled="loading"
+            class="page-size-select"
+          >
+            <option value="10">10</option>
+            <option value="20">20</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script>
+import { getContestList } from '@/api/contest'
+
 export default {
   name: 'ContestList',
   data() {
@@ -135,131 +190,40 @@ export default {
         { value: 'active', label: '进行中' },
         { value: 'ended', label: '已结束' }
       ],
-      contests: [
-        {
-          id: 'C001',
-          name: '2024春季ACM程序设计竞赛',
-          startTime: '2024-03-20T09:00:00',
-          duration: 180,
-          format: 'acm',
-          type: 'public',
-          participants: 256,
-          status: 'upcoming',
-          image: require('@/assets/images/acm.png')
-        },
-        {
-          id: 'C002',
-          name: '算法竞赛训练营',
-          startTime: '2024-03-15T14:00:00',
-          duration: 120,
-          format: 'ioi',
-          type: 'private',
-          participants: 128,
-          status: 'active',
-          image: require('@/assets/images/acm.png')
-        },
-        {
-          id: 'C003',
-          name: '数据结构挑战赛',
-          startTime: '2024-03-10T10:00:00',
-          duration: 150,
-          format: 'io',
-          type: 'public',
-          participants: 189,
-          status: 'ended',
-          image: require('@/assets/images/acm.png')
-        },
-        {
-          id: 'C004',
-          name: '全国大学生程序设计竞赛',
-          startTime: '2024-04-01T08:00:00',
-          duration: 300,
-          format: 'acm',
-          type: 'public',
-          participants: 512,
-          status: 'upcoming',
-          image: require('@/assets/images/acm.png')
-        },
-        {
-          id: 'C005',
-          name: 'IOI赛制练习赛',
-          startTime: '2024-03-18T13:30:00',
-          duration: 240,
-          format: 'ioi',
-          type: 'public',
-          participants: 203,
-          status: 'active',
-          image: require('@/assets/images/acm.png')
-        },
-        {
-          id: 'C006',
-          name: '校内选拔赛',
-          startTime: '2024-03-05T09:00:00',
-          duration: 180,
-          format: 'acm',
-          type: 'private',
-          participants: 96,
-          status: 'ended',
-          image: require('@/assets/images/acm.png')
-        },
-        {
-          id: 'C007',
-          name: '动态规划专题赛',
-          startTime: '2024-03-25T15:00:00',
-          duration: 120,
-          format: 'io',
-          type: 'public',
-          participants: 167,
-          status: 'upcoming',
-          image: require('@/assets/images/acm.png')
-        }
-      ]
+      contests: [],
+      pagination: {
+        page: 1,
+        page_size: 10,
+        total: 0,
+        total_pages: 0,
+        has_next: false,
+        has_previous: false
+      },
+      loading: false,
+      error: '',
+      searchTimer: null
     }
   },
   computed: {
     filteredContests() {
-      let result = [...this.contests]
-
-      // 搜索筛选（比赛号）
-      if (this.searchQuery.trim()) {
-        const query = this.searchQuery.trim().toUpperCase()
-        result = result.filter(contest => {
-          return contest.id.toUpperCase().includes(query)
-        })
-      }
-
-      // 互斥筛选：只应用最后一个选择的筛选条件
-      if (this.selectedFilter && this.selectedFilterValue) {
-        if (this.selectedFilter === 'format') {
-          result = result.filter(contest => contest.format === this.selectedFilterValue)
-        } else if (this.selectedFilter === 'type') {
-          result = result.filter(contest => contest.type === this.selectedFilterValue)
-        } else if (this.selectedFilter === 'status') {
-          result = result.filter(contest => contest.status === this.selectedFilterValue)
-        }
-      }
-
-      // 按开始时间排序，越晚开始的排在前面
-      result.sort((a, b) => {
-        const timeA = new Date(a.startTime).getTime()
-        const timeB = new Date(b.startTime).getTime()
-        return timeB - timeA // 降序排列
-      })
-
-      return result
+      // 目前筛选在后端完成，这里直接返回后端列表
+      return this.contests
     }
   },
   methods: {
+    goToContest(contestId) {
+      this.$router.push(`/contests/${contestId}`)
+    },
     toggleFilter(filterType, filterValue) {
-      // 如果点击的是已选中的筛选条件，则取消筛选
       if (this.selectedFilter === filterType && this.selectedFilterValue === filterValue) {
         this.selectedFilter = null
         this.selectedFilterValue = null
       } else {
-        // 否则设置新的筛选条件（会覆盖之前的筛选）
         this.selectedFilter = filterType
         this.selectedFilterValue = filterValue
       }
+      this.pagination.page = 1
+      this.fetchContests()
     },
     getStatusText(status) {
       const map = {
@@ -285,13 +249,20 @@ export default {
       return map[type] || type
     },
     formatDateTime(dateString) {
-      const date = new Date(dateString)
-      const year = date.getFullYear()
-      const month = String(date.getMonth() + 1).padStart(2, '0')
-      const day = String(date.getDate()).padStart(2, '0')
-      const hours = String(date.getHours()).padStart(2, '0')
-      const minutes = String(date.getMinutes()).padStart(2, '0')
-      return `${year}-${month}-${day} ${hours}:${minutes}`
+      if (!dateString) return '--'
+      try {
+        const [datePart, timePartRaw] = dateString.split('T')
+        if (!datePart || !timePartRaw) {
+          return dateString
+        }
+        const timePart = timePartRaw.split(/[.+Z]/)[0] || timePartRaw
+        const [hh, mm] = timePart.split(':')
+        const hour = hh ?? '00'
+        const minute = mm ?? '00'
+        return `${datePart} ${hour}:${minute}`
+      } catch (e) {
+        return '--'
+      }
     },
     formatDuration(minutes) {
       const hours = Math.floor(minutes / 60)
@@ -300,6 +271,138 @@ export default {
         return `${hours}小时${mins}分钟`
       }
       return `${mins}分钟`
+    },
+    getFilterParams() {
+      const params = {}
+      if (this.searchQuery.trim()) {
+        params.search = this.searchQuery.trim()
+      }
+      if (this.selectedFilter && this.selectedFilterValue) {
+        if (this.selectedFilter === 'format') {
+          const map = { acm: 'ACM', ioi: 'IOI', io: 'OI' }
+          params.format = map[this.selectedFilterValue] || this.selectedFilterValue
+        } else if (this.selectedFilter === 'type') {
+          const map = { public: '公开赛', private: '私有赛' }
+          params.type = map[this.selectedFilterValue] || this.selectedFilterValue
+        } else if (this.selectedFilter === 'status') {
+          const map = { upcoming: '即将开始', active: '进行中', ended: '已结束' }
+          params.status = map[this.selectedFilterValue] || this.selectedFilterValue
+        }
+      }
+      return params
+    },
+    async fetchContests() {
+      this.loading = true
+      this.error = ''
+      try {
+        const params = {
+          page: this.pagination.page,
+          page_size: this.pagination.page_size,
+          ...this.getFilterParams()
+        }
+        const res = await getContestList(params)
+        const list = res.data?.contests || []
+        const pageInfo = res.data?.pagination || {}
+
+        this.contests = list.map(item => {
+          const formatMap = { 'ACM': 'acm', 'IOI': 'ioi', 'OI': 'io' }
+          const typeMap = { '公开赛': 'public', '私有赛': 'private' }
+          const statusMap = { '即将开始': 'upcoming', '进行中': 'active', '已结束': 'ended' }
+
+          return {
+            id: item.id,
+            name: item.name,
+            startTime: item.startTime,
+            duration: item.duration,
+            format: formatMap[item.format] || 'acm',
+            type: typeMap[item.type] || 'public',
+            participants: item.participants ?? 0,
+            status: statusMap[item.status] || 'upcoming',
+            image: require('@/assets/images/acm.png')
+          }
+        })
+
+        this.pagination = {
+          page: pageInfo.page || this.pagination.page,
+          page_size: pageInfo.page_size || this.pagination.page_size,
+          total: pageInfo.total || list.length,
+          total_pages: pageInfo.total_pages || 1,
+          has_next: pageInfo.has_next ?? false,
+          has_previous: pageInfo.has_previous ?? false
+        }
+      } catch (e) {
+        console.error('获取比赛列表失败:', e)
+        this.error = e.message || '获取比赛列表失败，请稍后重试'
+        this.contests = []
+      } finally {
+        this.loading = false
+      }
+    },
+    handlePageChange(page) {
+      if (page === this.pagination.page) return
+      this.pagination.page = page
+      this.fetchContests()
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    },
+    handlePageSizeChange(size) {
+      if (size === this.pagination.page_size) return
+      this.pagination.page_size = size
+      this.pagination.page = 1
+      this.fetchContests()
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    },
+    // 生成页码数组（与题库相同逻辑，含省略号）
+    getPageNumbers() {
+      const current = this.pagination.page
+      const total = this.pagination.total_pages
+      const pages = []
+      
+      if (total <= 7) {
+        for (let i = 1; i <= total; i++) {
+          pages.push(i)
+        }
+      } else {
+        if (current <= 3) {
+          for (let i = 1; i <= 4; i++) {
+            pages.push(i)
+          }
+          pages.push('...')
+          pages.push(total)
+        } else if (current >= total - 2) {
+          pages.push(1)
+          pages.push('...')
+          for (let i = total - 3; i <= total; i++) {
+            pages.push(i)
+          }
+        } else {
+          pages.push(1)
+          pages.push('...')
+          for (let i = current - 1; i <= current + 1; i++) {
+            pages.push(i)
+          }
+          pages.push('...')
+          pages.push(total)
+        }
+      }
+      
+      return pages
+    },
+    handleSearchInput() {
+      if (this.searchTimer) {
+        clearTimeout(this.searchTimer)
+      }
+      this.searchTimer = setTimeout(() => {
+        this.pagination.page = 1
+        this.fetchContests()
+      }, 400)
+    }
+  },
+  mounted() {
+    this.fetchContests()
+  },
+  beforeUnmount() {
+    if (this.searchTimer) {
+      clearTimeout(this.searchTimer)
     }
   }
 }
@@ -605,6 +708,131 @@ export default {
 .empty-hint {
   font-size: 14px;
   color: #999999;
+}
+
+.pagination-container {
+  margin-top: 24px;
+  padding: 20px 24px;
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.pagination-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 14px;
+  color: #666666;
+}
+
+.page-info {
+  color: #1890ff;
+  font-weight: 500;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pagination-btn {
+  padding: 6px 16px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  background-color: #ffffff;
+  color: #333333;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  outline: none;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  border-color: #1890ff;
+  color: #1890ff;
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-pages {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pagination-page-btn {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  background-color: #ffffff;
+  color: #333333;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  outline: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pagination-page-btn:hover:not(:disabled):not(.ellipsis) {
+  border-color: #1890ff;
+  color: #1890ff;
+}
+
+.pagination-page-btn.active {
+  background-color: #1890ff;
+  border-color: #1890ff;
+  color: #ffffff;
+}
+
+.pagination-page-btn.ellipsis {
+  border: none;
+  cursor: default;
+  background-color: transparent;
+}
+
+.pagination-page-btn:disabled {
+  cursor: not-allowed;
+}
+
+.page-size-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #666666;
+}
+
+.page-size-select {
+  padding: 4px 8px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  font-size: 14px;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.page-size-select:focus {
+  border-color: #1890ff;
+}
+
+.page-size-select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 @media (max-width: 1400px) {

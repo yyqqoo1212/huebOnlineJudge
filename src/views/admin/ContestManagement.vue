@@ -1,16 +1,10 @@
 <template>
-  <div class="admin-page">
-    <div class="page-header">
-      <h1>比赛管理</h1>
-      <p class="page-subtitle">管理比赛、赛题、排名等</p>
-    </div>
-    <div class="page-content">
-      <div class="coming-soon">
-        <div class="coming-soon-icon">🚧</div>
-        <h2>功能开发中</h2>
-        <p>比赛管理功能正在开发中，敬请期待！</p>
-      </div>
-    </div>
+  <div class="contest-management">
+    <router-view v-slot="{ Component, route }">
+      <transition name="settings-fade" mode="out-in">
+        <component :is="Component" :key="route.path" />
+      </transition>
+    </router-view>
   </div>
 </template>
 
@@ -21,54 +15,42 @@ export default {
 </script>
 
 <style scoped>
-.admin-page {
+.contest-management {
   background-color: #ffffff;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   padding: 24px;
+  min-height: 100%;
+  position: relative;
 }
 
-.page-header {
-  margin-bottom: 24px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #e8e8e8;
+/* 比赛管理内容区域过渡动画，复用 settings-fade */
+.settings-fade-enter-active {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.page-header h1 {
-  font-size: 24px;
-  color: #333333;
-  margin: 0 0 8px 0;
+.settings-fade-leave-active {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.page-subtitle {
-  font-size: 14px;
-  color: #666666;
-  margin: 0;
+.settings-fade-enter-from {
+  opacity: 0;
+  transform: translateX(20px);
 }
 
-.page-content {
-  min-height: 400px;
+.settings-fade-enter-to {
+  opacity: 1;
+  transform: translateX(0);
 }
 
-.coming-soon {
-  text-align: center;
-  padding: 60px 20px;
+.settings-fade-leave-from {
+  opacity: 1;
+  transform: translateX(0);
 }
 
-.coming-soon-icon {
-  font-size: 48px;
-  margin-bottom: 16px;
-}
-
-.coming-soon h2 {
-  font-size: 20px;
-  color: #333333;
-  margin-bottom: 8px;
-}
-
-.coming-soon p {
-  font-size: 14px;
-  color: #666666;
+.settings-fade-leave-to {
+  opacity: 0;
+  transform: translateX(-20px);
 }
 </style>
 
