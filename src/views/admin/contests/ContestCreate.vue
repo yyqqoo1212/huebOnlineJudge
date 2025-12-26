@@ -39,8 +39,12 @@
               v-model="form.start_time"
               type="datetime-local"
               ref="startTimeInput"
+              :disabled="isContestEnded"
               :class="{ 'input-error': fieldErrors.start_time }"
             />
+            <small v-if="isContestEnded" class="disabled-hint">
+              已结束的比赛无法修改时间配置
+            </small>
           </div>
           <div class="form-item">
             <label>比赛持续时间（分钟） *</label>
@@ -50,6 +54,7 @@
               placeholder="例如：180"
               min="1"
               ref="durationInput"
+              :disabled="isContestEnded"
               :class="{ 'input-error': fieldErrors.duration }"
             />
           </div>
@@ -58,6 +63,7 @@
             <input
               v-model="form.register_start_time"
               type="datetime-local"
+              :disabled="isContestEnded"
             />
           </div>
           <div class="form-item">
@@ -65,6 +71,7 @@
             <input
               v-model="form.register_end_time"
               type="datetime-local"
+              :disabled="isContestEnded"
               :class="{ 'input-error': fieldErrors.register_end_time }"
             />
             <small v-if="fieldErrors.register_end_time" class="error-hint">
@@ -264,12 +271,17 @@ export default {
       feedbackVisible: false,
       feedbackMessage: '',
       feedbackType: 'success',
-      detailLoading: false
+      detailLoading: false,
+      contestStatus: null // 比赛状态：'即将开始'、'进行中'、'已结束'
     }
   },
   computed: {
     isEdit() {
       return !!this.$route.params.id
+    },
+    isContestEnded() {
+      // 判断比赛是否已结束
+      return this.isEdit && this.contestStatus === '已结束'
     },
     pageTitle() {
       return this.isEdit ? '编辑比赛' : '创建比赛'
@@ -398,6 +410,8 @@ export default {
           const time = data.time_config || {}
           const rule = data.rule_config || {}
           const perm = data.permission_config || {}
+          // 保存比赛状态
+          this.contestStatus = time.status || null
           this.form = {
             contest_name: data.name || '',
             description: data.description || '',
@@ -542,6 +556,7 @@ export default {
         contest_mode: false,
         password: false
       }
+      this.contestStatus = null
     }
   }
 }
@@ -639,8 +654,22 @@ textarea:focus {
   box-shadow: 0 0 0 2px rgba(255, 77, 79, 0.2);
 }
 
+input:disabled,
+select:disabled,
+textarea:disabled {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
 .error-hint {
   color: #ff4d4f;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.disabled-hint {
+  color: #999999;
   font-size: 12px;
   margin-top: 4px;
 }
